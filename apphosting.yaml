@@ -1,0 +1,79 @@
+# Firebase App Hosting configuration for ARSkinRX (Next.js SSR).
+# Deploy:  firebase deploy --only apphosting   (after `firebase init apphosting`)
+#
+# The Admin SDK reads its service-account key from the FIREBASE_SERVICE_ACCOUNT_BASE64
+# secret (in Cloud Secret Manager) so all admin operations work reliably.
+#
+# Secret values (Stripe, TURN, Twilio, Resend, CRON) must be stored in Cloud
+# Secret Manager and referenced below. Create them with, e.g.:
+#   firebase apphosting:secrets:set stripe-secret-key
+#   firebase apphosting:secrets:set stripe-webhook-secret
+#   firebase apphosting:secrets:set turn-credential
+# then grant access:
+#   firebase apphosting:secrets:grantaccess stripe-secret-key --backend <backend-id>
+
+runConfig:
+  minInstances: 0
+  maxInstances: 4
+  concurrency: 80
+  cpu: 1
+  memoryMiB: 512
+
+env:
+  # Public Firebase web config (safe to expose; needed at build + runtime).
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: AIzaSyD3u1pdersrDNxRzrEBs9cR8S73D_KGZn0
+    availability: [BUILD, RUNTIME]
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: arskinrx.firebaseapp.com
+    availability: [BUILD, RUNTIME]
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: arskinrx
+    availability: [BUILD, RUNTIME]
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: arskinrx.firebasestorage.app
+    availability: [BUILD, RUNTIME]
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: "229240859988"
+    availability: [BUILD, RUNTIME]
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: 1:229240859988:web:c244886d477934a3492cc1
+    availability: [BUILD, RUNTIME]
+  - variable: NEXT_PUBLIC_APP_URL
+    value: https://arskin--arskinrx.us-east4.hosted.app
+    availability: [BUILD, RUNTIME]
+
+  # Server-side Admin SDK credentials (stored in Cloud Secret Manager).
+  - variable: FIREBASE_SERVICE_ACCOUNT_BASE64
+    secret: FIREBASE_SERVICE_ACCOUNT_BASE64
+    availability: [RUNTIME]
+
+  # ── Secrets (uncomment once created in Secret Manager) ──
+  # - variable: STRIPE_SECRET_KEY
+  #   secret: stripe-secret-key
+  # - variable: NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+  #   value: pk_live_...
+  #   availability: [BUILD, RUNTIME]
+  # - variable: STRIPE_WEBHOOK_SECRET
+  #   secret: stripe-webhook-secret
+  # - variable: PLATFORM_FEE_BPS
+  #   value: "2000"
+  #   availability: [RUNTIME]
+  # - variable: TURN_URLS
+  #   value: turn:turn.example.com:3478
+  #   availability: [RUNTIME]
+  # - variable: TURN_USERNAME
+  #   secret: turn-username
+  # - variable: TURN_CREDENTIAL
+  #   secret: turn-credential
+  # - variable: RESEND_API_KEY
+  #   secret: resend-api-key
+  # - variable: TWILIO_ACCOUNT_SID
+  #   secret: twilio-account-sid
+  # - variable: TWILIO_AUTH_TOKEN
+  #   secret: twilio-auth-token
+  # - variable: TWILIO_FROM_NUMBER
+  #   value: "+1501..."
+  #   availability: [RUNTIME]
+  # - variable: CRON_SECRET
+  #   secret: cron-secret

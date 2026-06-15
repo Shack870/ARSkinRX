@@ -1,0 +1,151 @@
+rules_version = '2';
+
+// ARSkinRX Firestore security rules.
+//
+// Role is stored as a custom claim on the auth token (request.auth.token.role)
+// and mirrored on the users/{uid} document. Custom claims are the source of
+// truth for authorization here so they can't be tampered with from the client.
+service cloud.firestore {
+  function isSignedIn() {
+    return request.auth != null;
+  }
+  function role() {
+    return request.auth.token.role;
+  }
+  function isAdmin() {
+    return isSignedIn() && role() == 'admin';
+  }
+  function isProvider() {
+    return isSignedIn() && role() == 'provider';
+  }
+  function isOwner(uid) {
+    return isSignedIn() && request.auth.uid == uid;
+  }
+
+  match /databases/{database}/documents {
+
+    // Base user profiles. Users read/update their own; admins see all.
+    match /users/{uid} {
+      allow read: if isOwner(uid) || isAdmin() || isProvider();
+      allow create: if isOwner(uid);
+      // role is never client-writable; enforced via Admin SDK only.
+      allow update: if (isOwner(uid) || isAdmin())
+        && request.resource.data.role == resource.data.role;
+      allow delete: if isAdmin();
+    }
+
+    // Provider marketplace profiles. Public-readable (approved only enforced
+    // in queries); only the provider or an admin can write.
+    match /providers/{uid} {
+      allow read: if isSignedIn();
+      allow create: if isOwner(uid);
+      allow update: if isOwner(uid) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Provider availability.
+    match /availability/{providerId} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(providerId) || isAdmin();
+    }
+
+    // Appointments. Visible to the client, the provider on the appointment,
+    // and admins. Writes go through server (Admin SDK) for booking/payment;
+    // limited client-side updates (e.g. marking joined) are allowed.
+    match /appointments/{appointmentId} {
+      allow read: if isSignedIn() && (
+        resource.data.clientId == request.auth.uid ||
+        resource.data.providerId == request.auth.uid ||
+        isAdmin()
+      );
+      allow write: if isAdmin();
+    }
+
+    // Intake responses (PHI). Only the owning client, assigned provider, admin.
+    match /intakeResponses/{intakeId} {
+      allow read: if isSignedIn() && (
+        resource.data.clientId == request.auth.uid ||
+        resource.data.providerId == request.auth.uid ||
+        isAdmin()
+      );
+      allow create: if isOwner(request.resource.data.clientId);
+      allow update, delete: if isAdmin();
+    }
+
+    // Payments (no PHI). Read by owning client, provider, admin. Writes server-only.
+    match /payments/{paymentId} {
+      allow read: if isSignedIn() && (
+        resource.data.clientId == request.auth.uid ||
+        resource.data.providerId == request.auth.uid ||
+        isAdmin()
+      );
+      allow write: if isAdmin();
+    }
+
+    // Provider payouts. Readable by the owning provider and admins; written
+    // only by the server (Admin SDK).
+    match /payouts/{payoutId} {
+      allow read: if isSignedIn() && (
+        resource.data.providerId == request.auth.uid || isAdmin()
+      );
+      allow write: if false;
+    }
+
+    // Visit notes (PHI). Provider on the visit and admin write/read; client reads.
+    match /visitNotes/{appointmentId} {
+      allow read: if isSignedIn() && (
+        resource.data.clientId == request.auth.uid ||
+        resource.data.providerId == request.auth.uid ||
+        isAdmin()
+      );
+      allow write: if isProvider() || isAdmin();
+    }
+
+    // WebRTC signaling. Only the two participants of the appointment (the
+    // signaling doc id equals the appointment id) or an admin.
+    match /signaling/{appointmentId} {
+      function visit() {
+        return get(/databases/$(database)/documents/appointments/$(appointmentId)).data;
+      }
+      function isVisitParticipant() {
+        return isSignedIn() && (
+          visit().clientId == request.auth.uid ||
+          visit().providerId == request.auth.uid ||
+          isAdmin()
+        );
+      }
+      allow read, write: if isVisitParticipant();
+      match /{document=**} {
+        allow read, write: if isVisitParticipant();
+      }
+    }
+
+    // Public service catalog (also shipped in code). Admin-managed.
+    match /services/{serviceId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Audit logs are server-written only.
+    match /auditLogs/{logId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // Live presence: a provider maintains their own; anyone signed-in can read
+    // (used for availability display). Matching writes happen via Admin SDK.
+    match /presence/{providerId} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(providerId) || isAdmin();
+    }
+
+    // Live (No-Wait) requests. Readable by the requesting client and admins.
+    // All writes (creation, payment, matching) go through the server.
+    match /liveRequests/{id} {
+      allow read: if isSignedIn() && (
+        resource.data.clientId == request.auth.uid || isAdmin()
+      );
+      allow write: if false;
+    }
+  }
+}

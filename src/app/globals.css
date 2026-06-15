@@ -1,0 +1,157 @@
+@import "tailwindcss";
+
+/*
+  ARSkinRX brand theme — a calm clinical-spa palette:
+  deep teal/eucalyptus primary, warm cream surfaces, soft rose accent.
+*/
+:root {
+  --background: #fbfaf7;
+  --foreground: #1c2b2a;
+  --card: #ffffff;
+  --muted: #f1efe9;
+  --muted-foreground: #5d6b67;
+  --border: #e6e2d8;
+  --primary: #2f6f6a;
+  --primary-foreground: #ffffff;
+  --primary-soft: #e3efed;
+  --accent: #c98b7a;
+  --accent-soft: #f6e9e4;
+  --ring: #2f6f6a;
+  --radius: 0.875rem;
+
+  /* Soft accent tints used sparingly for variety. */
+  --tint-teal: #e3efed;
+  --tint-teal-fg: #2f6f6a;
+  --tint-sky: #e4eef4;
+  --tint-sky-fg: #2f6986;
+  --tint-violet: #ece8f7;
+  --tint-violet-fg: #6a59ad;
+  --tint-amber: #f6eedd;
+  --tint-amber-fg: #946d1c;
+  --tint-emerald: #e1f0e8;
+  --tint-emerald-fg: #2f7d5b;
+  --tint-rose: #f6e7e2;
+  --tint-rose-fg: #b06a57;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-soft: var(--primary-soft);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-ring: var(--ring);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 0.25rem);
+  --radius-sm: calc(var(--radius) - 0.45rem);
+}
+
+* {
+  border-color: var(--border);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+@keyframes arx-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.arx-toast-in {
+  animation: arx-toast-in 0.2s ease-out;
+}
+
+@keyframes arx-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+.arx-skeleton {
+  background: var(--muted);
+  border-radius: var(--radius-sm);
+  animation: arx-pulse 1.5s ease-in-out infinite;
+}
+
+/* ── Decorative color touches ───────────────────────────────── */
+
+/* Soft blurred color blob for layered backgrounds. */
+.arx-blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(70px);
+  opacity: 0.55;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Gradient text for accent headings. */
+.arx-gradient-text {
+  background: linear-gradient(120deg, var(--primary), #3f9a86 55%, var(--accent));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Subtle dot grid backdrop. */
+.arx-dot-grid {
+  background-image: radial-gradient(
+    color-mix(in srgb, var(--primary) 16%, transparent) 1px,
+    transparent 1px
+  );
+  background-size: 22px 22px;
+}
+
+/* Soft colored glow under elevated cards. */
+.arx-glow {
+  box-shadow:
+    0 1px 2px rgba(28, 43, 42, 0.04),
+    0 18px 40px -24px color-mix(in srgb, var(--primary) 45%, transparent);
+}
+
+/* Tint chips for icons / badges. */
+.tint-teal {
+  background: var(--tint-teal);
+  color: var(--tint-teal-fg);
+}
+.tint-sky {
+  background: var(--tint-sky);
+  color: var(--tint-sky-fg);
+}
+.tint-violet {
+  background: var(--tint-violet);
+  color: var(--tint-violet-fg);
+}
+.tint-amber {
+  background: var(--tint-amber);
+  color: var(--tint-amber-fg);
+}
+.tint-emerald {
+  background: var(--tint-emerald);
+  color: var(--tint-emerald-fg);
+}
+.tint-rose {
+  background: var(--tint-rose);
+  color: var(--tint-rose-fg);
+}

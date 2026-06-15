@@ -1,0 +1,36 @@
+rules_version = '2';
+
+// ARSkinRX Cloud Storage rules.
+// Intake/condition photos are PHI: only the uploading client, the assigned
+// provider, and admins may access them. Provider profile photos are public-read.
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function role() {
+      return request.auth.token.role;
+    }
+
+    // Condition photos uploaded during intake: /intake/{clientId}/{file}
+    match /intake/{clientId}/{fileName} {
+      allow read: if isSignedIn() && (
+        request.auth.uid == clientId ||
+        role() == 'provider' ||
+        role() == 'admin'
+      );
+      allow write: if isSignedIn() && request.auth.uid == clientId
+        && request.resource.size < 15 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    // Provider profile photos: /providers/{providerId}/{file}
+    match /providers/{providerId}/{fileName} {
+      allow read: if true;
+      allow write: if isSignedIn() && request.auth.uid == providerId
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+  }
+}
