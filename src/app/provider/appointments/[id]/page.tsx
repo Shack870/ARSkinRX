@@ -16,6 +16,7 @@ import { formatCurrency } from "@/lib/utils";
 import type { ServiceType } from "@/lib/types";
 import { isJoinable } from "@/lib/appointment-window";
 import { useToast } from "@/components/ui/toast";
+import { useConfirm } from "@/components/ui/confirm";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +34,7 @@ export default function ProviderAppointmentDetail({
   const { id } = use(params);
   const router = useRouter();
   const toast = useToast();
+  const confirm = useConfirm();
   const [cancelling, setCancelling] = React.useState(false);
   const { appointment, loading } = useAppointment(id);
   const { profile: patient } = useUserProfile(appointment?.clientId);
@@ -120,9 +122,14 @@ export default function ProviderAppointmentDetail({
 
   async function cancelVisit() {
     if (
-      !confirm(
-        "Cancel this visit? The patient will be notified and is eligible for a refund.",
-      )
+      !(await confirm({
+        title: "Cancel this visit?",
+        message:
+          "The patient will be notified and is eligible for a refund.",
+        confirmLabel: "Cancel visit",
+        cancelLabel: "Keep visit",
+        destructive: true,
+      }))
     )
       return;
     setCancelling(true);

@@ -28,6 +28,18 @@ export async function GET(req: Request) {
   const admin = await requireAdmin(req);
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
+  const range = new URL(req.url).searchParams.get("range") ?? "all";
+  const now = Date.now();
+  const cutoff = (() => {
+    if (range === "7d") return now - 7 * 86_400_000;
+    if (range === "30d") return now - 30 * 86_400_000;
+    if (range === "month") {
+      const d = new Date();
+      return new Date(d.getFullYear(), d.getMonth(), 1).getTime();
+    }
+    return 0;
+  })();
+
   const snap = await adminDb.collection(COLLECTIONS.appointments).get();
   const map = new Map<string, ProviderAgg>();
 
@@ -35,6 +47,7 @@ export async function GET(req: Request) {
     const a = doc.data();
     const pid = a.providerId as string | undefined;
     if (!pid) continue;
+    if (cutoff && (a.start ?? 0) < cutoff) continue;
     const e =
       map.get(pid) ??
       ({

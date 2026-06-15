@@ -25,6 +25,7 @@ import { HoldTimer } from "@/components/hold-timer";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useConfirm } from "@/components/ui/confirm";
 import type { Appointment } from "@/lib/types";
 
 export default function AppointmentDetailPage({
@@ -48,15 +49,23 @@ function Detail({ id }: { id: string }) {
   const { intake } = useIntake(appointment?.intakeId);
   const [now, setNow] = React.useState(Date.now());
   const [cancelling, setCancelling] = React.useState(false);
+  const [showReschedule, setShowReschedule] = React.useState(false);
+  const confirm = useConfirm();
   const verifiedRef = React.useRef(false);
 
   async function cancelVisit() {
     if (!appointment) return;
     const within48 = appointment.start - Date.now() < 48 * 60 * 60 * 1000;
-    const msg = within48
-      ? "Cancel this visit? It's within 48 hours, so it isn't eligible for a refund per our policy."
-      : "Cancel this visit? You'll be eligible for a refund.";
-    if (!confirm(msg)) return;
+    const ok = await confirm({
+      title: "Cancel this visit?",
+      message: within48
+        ? "It's within 48 hours, so it isn't eligible for a refund per our policy."
+        : "You'll be eligible for a refund.",
+      confirmLabel: "Cancel visit",
+      cancelLabel: "Keep visit",
+      destructive: true,
+    });
+    if (!ok) return;
     setCancelling(true);
     try {
       const res = await authedFetch(`/api/appointments/${id}/cancel`, {
@@ -261,9 +270,24 @@ function Detail({ id }: { id: string }) {
         </Card>
       )}
 
+      {appointment.status === "booked" &&
+        appointment.start > now &&
+        showReschedule && (
+          <ReschedulePanel
+            appointment={appointment}
+            title="Reschedule your visit"
+            subtitle="Pick a new time — your payment carries over, no extra charge."
+          />
+        )}
+
       {["booked", "pending_payment"].includes(appointment.status) &&
         appointment.start > now && (
-          <div className="text-center">
+          <div className="flex flex-col items-center gap-2 text-center">
+            {appointment.status === "booked" && !showReschedule && (
+              <Button variant="outline" onClick={() => setShowReschedule(true)}>
+                <CalendarClock className="h-4 w-4" /> Reschedule
+              </Button>
+            )}
             <button
               onClick={cancelVisit}
               disabled={cancelling}
@@ -271,9 +295,8 @@ function Detail({ id }: { id: string }) {
             >
               {cancelling ? "Cancelling…" : "Cancel this visit"}
             </button>
-            <p className="mt-1 text-xs text-[var(--muted-foreground)]">
-              Free reschedule if you miss your window · no refunds within 48
-              hours
+            <p className="text-xs text-[var(--muted-foreground)]">
+              Free reschedule anytime · no refunds within 48 hours
             </p>
           </div>
         )}
@@ -340,7 +363,15 @@ function PendingPayment({
   );
 }
 
-function ReschedulePanel({ appointment }: { appointment: Appointment }) {
+function ReschedulePanel({
+  appointment,
+  title = "Reschedule — free of charge",
+  subtitle = "Pick a new time. You won't be charged again.",
+}: {
+  appointment: Appointment;
+  title?: string;
+  subtitle?: string;
+}) {
   const router = useRouter();
   const [slots, setSlots] = React.useState<{ start: number; end: number }[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -382,10 +413,8 @@ function ReschedulePanel({ appointment }: { appointment: Appointment }) {
 
   return (
     <Card className="p-6">
-      <h2 className="font-semibold">Reschedule — free of charge</h2>
-      <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-        Pick a new time. You won&apos;t be charged again.
-      </p>
+      <h2 className="font-semibold">{title}</h2>
+      <p className="mt-1 text-sm text-[var(--muted-foreground)]">{subtitle}</p>
       {loading ? (
         <Loader2 className="mx-auto my-6 h-6 w-6 animate-spin text-[var(--primary)]" />
       ) : slots.length === 0 ? (

@@ -34,16 +34,18 @@ export default function AdminRevenuePage() {
   const [providers, setProviders] = React.useState<ProviderRow[]>([]);
   const [totals, setTotals] = React.useState<Totals | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const [range, setRange] = React.useState("all");
 
   React.useEffect(() => {
-    authedFetch("/api/admin/revenue")
+    setLoading(true);
+    authedFetch(`/api/admin/revenue?range=${range}`)
       .then((r) => r.json())
       .then((d) => {
         setProviders(d.providers ?? []);
         setTotals(d.totals ?? null);
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [range]);
 
   function exportCsv() {
     downloadCsv(
@@ -74,13 +76,25 @@ export default function AdminRevenuePage() {
             visit.
           </p>
         </div>
-        <button
-          onClick={exportCsv}
-          disabled={providers.length === 0}
-          className="inline-flex h-9 items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border)] px-3 text-sm font-medium hover:bg-[var(--muted)] disabled:opacity-50"
-        >
-          <Download className="h-4 w-4" /> Export CSV
-        </button>
+        <div className="flex items-center gap-2">
+          <select
+            value={range}
+            onChange={(e) => setRange(e.target.value)}
+            className="h-9 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--card)] px-3 text-sm outline-none"
+          >
+            <option value="all">All time</option>
+            <option value="month">This month</option>
+            <option value="30d">Last 30 days</option>
+            <option value="7d">Last 7 days</option>
+          </select>
+          <button
+            onClick={exportCsv}
+            disabled={providers.length === 0}
+            className="inline-flex h-9 items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border)] px-3 text-sm font-medium hover:bg-[var(--muted)] disabled:opacity-50"
+          >
+            <Download className="h-4 w-4" /> Export CSV
+          </button>
+        </div>
       </div>
 
       {loading ? (

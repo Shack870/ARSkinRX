@@ -9,6 +9,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useConfirm } from "@/components/ui/confirm";
+import { useToast } from "@/components/ui/toast";
 
 interface Outstanding {
   providerId: string;
@@ -33,6 +35,8 @@ export default function AdminPayoutsPage() {
   const [payingId, setPayingId] = React.useState<string | null>(null);
   const [method, setMethod] = React.useState<Record<string, string>>({});
   const [note, setNote] = React.useState<Record<string, string>>({});
+  const confirm = useConfirm();
+  const toast = useToast();
 
   const load = React.useCallback(() => {
     authedFetch("/api/admin/payouts")
@@ -49,13 +53,15 @@ export default function AdminPayoutsPage() {
   async function pay(o: Outstanding) {
     const m = (method[o.providerId] ?? "").trim();
     if (!m) {
-      alert("Enter how you paid them (e.g. Zelle, Check, ACH).");
+      toast.error("Add a payment method", "e.g. Zelle, Check, or ACH.");
       return;
     }
     if (
-      !confirm(
-        `Mark ${formatCurrency(o.amountCents)} as paid to ${o.providerName} via ${m}? This notifies the provider.`,
-      )
+      !(await confirm({
+        title: "Record this payout?",
+        message: `Mark ${formatCurrency(o.amountCents)} as paid to ${o.providerName} via ${m}. The provider will be notified.`,
+        confirmLabel: "Mark paid",
+      }))
     )
       return;
     setPayingId(o.providerId);
@@ -70,7 +76,9 @@ export default function AdminPayoutsPage() {
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
-        alert(d.error ?? "Could not record payout.");
+        toast.error("Couldn't record payout", d.error);
+      } else {
+        toast.success("Payout recorded");
       }
       load();
     } finally {

@@ -31,9 +31,19 @@ export async function POST(
   if (!orig.exists || orig.get("clientId") !== user.uid) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  if (orig.get("status") !== "no_show" || orig.get("rescheduledToId")) {
+  const st = orig.get("status");
+  const reschedulable =
+    (st === "no_show" || st === "booked") && !orig.get("rescheduledToId");
+  if (!reschedulable) {
     return NextResponse.json(
       { error: "This visit can't be rescheduled." },
+      { status: 409 },
+    );
+  }
+  // Can't reschedule a visit that already started.
+  if (st === "booked" && orig.get("start") <= Date.now()) {
+    return NextResponse.json(
+      { error: "This visit has already started." },
       { status: 409 },
     );
   }

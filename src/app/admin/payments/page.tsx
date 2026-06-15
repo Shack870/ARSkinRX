@@ -10,6 +10,8 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useConfirm } from "@/components/ui/confirm";
+import { useToast } from "@/components/ui/toast";
 
 interface AdminPayment {
   id: string;
@@ -27,8 +29,9 @@ export default function AdminPaymentsPage() {
   const [payments, setPayments] = React.useState<AdminPayment[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [busy, setBusy] = React.useState<string | null>(null);
-
   const [q, setQ] = React.useState("");
+  const confirm = useConfirm();
+  const toast = useToast();
 
   const load = React.useCallback(() => {
     authedFetch("/api/admin/payments")
@@ -63,7 +66,15 @@ export default function AdminPaymentsPage() {
   }
 
   async function refund(id: string, force = false) {
-    if (!force && !confirm("Refund the full remaining amount for this payment?"))
+    if (
+      !force &&
+      !(await confirm({
+        title: "Refund this payment?",
+        message: "This refunds the full remaining amount.",
+        confirmLabel: "Refund",
+        destructive: true,
+      }))
+    )
       return;
     setBusy(id);
     try {
@@ -75,15 +86,19 @@ export default function AdminPaymentsPage() {
       if (res.status === 409 && d.error === "within_48h") {
         setBusy(null);
         if (
-          confirm(
-            `${d.message}\n\nOverride and refund anyway?`,
-          )
+          await confirm({
+            title: "Within 48 hours",
+            message: `${d.message} Override and refund anyway?`,
+            confirmLabel: "Override & refund",
+            destructive: true,
+          })
         ) {
           refund(id, true);
         }
         return;
       }
-      if (!res.ok) alert(d.error ?? "Refund failed.");
+      if (!res.ok) toast.error("Refund failed", d.error);
+      else toast.success("Refund issued");
       load();
     } finally {
       setBusy(null);
