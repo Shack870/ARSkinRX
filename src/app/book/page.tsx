@@ -120,16 +120,22 @@ function BookInner() {
       .finally(() => setLoadingProviders(false));
   }, [step, serviceId]);
 
-  // Re-check live availability on the provider and time steps.
+  // Re-check live availability on the provider and time steps; poll on the
+  // time step so the card flips to "available" as soon as a nurse goes live.
   React.useEffect(() => {
     if (!serviceId || (step !== 1 && step !== 3)) return;
-    fetch(`/api/live/availability?serviceId=${serviceId}`)
-      .then((r) => r.json())
-      .then((d) => {
-        setLiveAvailable(!!d.available);
-        if (d.realtimePriceCents) setLivePriceCents(d.realtimePriceCents);
-      })
-      .catch(() => setLiveAvailable(false));
+    const check = () =>
+      fetch(`/api/live/availability?serviceId=${serviceId}`)
+        .then((r) => r.json())
+        .then((d) => {
+          setLiveAvailable(!!d.available);
+          if (d.realtimePriceCents) setLivePriceCents(d.realtimePriceCents);
+        })
+        .catch(() => setLiveAvailable(false));
+    check();
+    if (step !== 3) return;
+    const id = setInterval(check, 12000);
+    return () => clearInterval(id);
   }, [step, serviceId]);
 
   // Load slots when entering the time step.

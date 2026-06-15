@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { DashboardShell, type NavItem } from "@/components/dashboard/dashboard-shell";
 import { IncomingLive } from "@/components/live/incoming-live";
+import { PresenceProvider } from "@/components/live/presence-context";
 
 const NAV: NavItem[] = [
   { label: "Overview", href: "/provider", icon: LayoutDashboard },
@@ -25,8 +26,10 @@ export default function ProviderLayout({
 }) {
   return (
     <DashboardShell role="provider" nav={NAV} brandLabel="Nurse Practitioner">
-      <IncomingLive />
-      {children}
+      <PresenceProvider>
+        <IncomingLive />
+        {children}
+      </PresenceProvider>
     </DashboardShell>
   );
 }
