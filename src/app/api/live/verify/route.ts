@@ -3,7 +3,7 @@ import { adminDb } from "@/lib/firebase/admin";
 import { COLLECTIONS } from "@/lib/firebase/collections";
 import { verifyBearer } from "@/lib/api-auth";
 import { getStripe } from "@/lib/stripe";
-import { tryMatchLiveRequest, LIVE_SEARCH_MS } from "@/lib/live-server";
+import { LIVE_SEARCH_MS } from "@/lib/live-server";
 
 /**
  * POST /api/live/verify { liveRequestId, sessionId }
@@ -25,7 +25,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
   if (snap.get("status") !== "pending_payment") {
-    await tryMatchLiveRequest(liveRequestId);
     return NextResponse.json({ ok: true });
   }
 
@@ -48,6 +47,5 @@ export async function POST(req: Request) {
     expiresAt: Date.now() + LIVE_SEARCH_MS,
     updatedAt: Date.now(),
   });
-  const result = await tryMatchLiveRequest(liveRequestId);
-  return NextResponse.json({ ok: true, ...result });
+  return NextResponse.json({ ok: true });
 }

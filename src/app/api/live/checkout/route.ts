@@ -4,7 +4,7 @@ import { COLLECTIONS } from "@/lib/firebase/collections";
 import { verifyBearer } from "@/lib/api-auth";
 import { getService } from "@/lib/services";
 import { getStripe } from "@/lib/stripe";
-import { tryMatchLiveRequest, LIVE_SEARCH_MS } from "@/lib/live-server";
+import { LIVE_SEARCH_MS } from "@/lib/live-server";
 import { rateLimit } from "@/lib/rate-limit";
 import type { ServiceType } from "@/lib/types";
 
@@ -47,7 +47,6 @@ export async function POST(req: Request) {
       expiresAt: Date.now() + LIVE_SEARCH_MS,
       updatedAt: Date.now(),
     });
-    await tryMatchLiveRequest(liveRequestId);
     return NextResponse.json({
       devBypass: true,
       url: `${APP_URL}/live/${liveRequestId}`,

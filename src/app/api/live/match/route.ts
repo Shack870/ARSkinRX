@@ -2,12 +2,12 @@ import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase/admin";
 import { COLLECTIONS } from "@/lib/firebase/collections";
 import { verifyBearer } from "@/lib/api-auth";
-import { tryMatchLiveRequest } from "@/lib/live-server";
 
 /**
  * POST /api/live/match { liveRequestId }
- * Re-attempts matching for the caller's searching request. Called by the
- * "Looking for your nurse" screen on a short interval. Expires past the window.
+ * Polled by the patient's "Looking for your nurse" screen. It does NOT claim a
+ * nurse (nurses accept offers themselves) — it just reports status and expires
+ * the request if the search window has elapsed (payment becomes refund-eligible).
  */
 export async function POST(req: Request) {
   const user = await verifyBearer(req);
@@ -31,7 +31,6 @@ export async function POST(req: Request) {
   if (lr.status !== "searching") {
     return NextResponse.json({ matched: false, status: lr.status });
   }
-  // Expire if the search window has elapsed (payment becomes refund-eligible).
   if (lr.expiresAt && Date.now() > lr.expiresAt) {
     await ref.update({
       status: "expired",
@@ -40,7 +39,5 @@ export async function POST(req: Request) {
     });
     return NextResponse.json({ matched: false, status: "expired" });
   }
-
-  const result = await tryMatchLiveRequest(liveRequestId);
-  return NextResponse.json(result);
+  return NextResponse.json({ matched: false, status: "searching" });
 }
