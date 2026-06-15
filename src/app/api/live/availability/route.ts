@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { countAvailableProviders } from "@/lib/live-server";
+import { countAvailableProviders, getLivePriceCents } from "@/lib/live-server";
 import { rateLimit } from "@/lib/rate-limit";
 import type { ServiceType } from "@/lib/types";
 
@@ -10,9 +10,14 @@ export async function GET(req: Request) {
 
   const { searchParams } = new URL(req.url);
   const serviceId = searchParams.get("serviceId") as ServiceType | null;
+  const realtimePriceCents = await getLivePriceCents();
   if (!serviceId) {
-    return NextResponse.json({ available: false, count: 0 });
+    return NextResponse.json({ available: false, count: 0, realtimePriceCents });
   }
   const count = await countAvailableProviders(serviceId);
-  return NextResponse.json({ available: count > 0, count });
+  return NextResponse.json({
+    available: count > 0,
+    count,
+    realtimePriceCents,
+  });
 }

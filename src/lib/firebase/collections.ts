@@ -13,4 +13,5 @@ export const COLLECTIONS = {
   auditLogs: "auditLogs",
   presence: "presence",
   liveRequests: "liveRequests",
+  settings: "settings",
 } as const;

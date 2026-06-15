@@ -8,6 +8,7 @@ import { formatDate } from "@/lib/datetime";
 import { formatCurrency } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { LiveBadge } from "@/components/live/live-badge";
 
 export default function EarningsPage() {
   const { user } = useAuth();
@@ -68,8 +69,9 @@ export default function EarningsPage() {
               .map((a) => (
                 <li key={a.id} className="flex items-center justify-between py-3">
                   <div>
-                    <p className="font-medium">
+                    <p className="flex items-center gap-2 font-medium">
                       {SERVICE_MAP[a.serviceId]?.name ?? a.serviceId}
+                      {a.isLive && <LiveBadge />}
                     </p>
                     <p className="text-sm text-[var(--muted-foreground)]">
                       {formatDate(a.start)}

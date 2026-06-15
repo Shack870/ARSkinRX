@@ -139,6 +139,12 @@ service cloud.firestore {
       allow write: if isOwner(providerId) || isAdmin();
     }
 
+    // Platform settings (e.g. real-time visit price). Public read, server write.
+    match /settings/{doc} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     // Live (No-Wait) requests. Readable by the requesting client and admins.
     // All writes (creation, payment, matching) go through the server.
     match /liveRequests/{id} {

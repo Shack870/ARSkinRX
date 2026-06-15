@@ -9,6 +9,7 @@ import { formatDateTime } from "@/lib/datetime";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { LiveBadge } from "@/components/live/live-badge";
 import type { Appointment } from "@/lib/types";
 
 export default function SchedulePage() {
@@ -75,8 +76,9 @@ function Section({
                   href={`/provider/appointments/${a.id}`}
                   className="min-w-0 flex-1"
                 >
-                  <p className="truncate font-medium hover:text-[var(--primary)]">
+                  <p className="flex items-center gap-2 truncate font-medium hover:text-[var(--primary)]">
                     {service?.name ?? a.serviceId}
+                    {a.isLive && <LiveBadge />}
                   </p>
                   <p className="text-sm text-[var(--muted-foreground)]">
                     {formatDateTime(a.start)}

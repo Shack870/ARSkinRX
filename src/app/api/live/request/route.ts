@@ -4,7 +4,7 @@ import { COLLECTIONS } from "@/lib/firebase/collections";
 import { verifyBearer } from "@/lib/api-auth";
 import { getEffectiveService } from "@/lib/services-server";
 import { platformFeeCents } from "@/lib/stripe";
-import { countAvailableProviders } from "@/lib/live-server";
+import { countAvailableProviders, getLivePriceCents } from "@/lib/live-server";
 import { rateLimit } from "@/lib/rate-limit";
 import type { ServiceType } from "@/lib/types";
 
@@ -35,6 +35,9 @@ export async function POST(req: Request) {
     );
   }
 
+  // Real-time visits use the flat premium price set by admin.
+  const priceCents = await getLivePriceCents();
+
   const now = Date.now();
   const ref = adminDb.collection(COLLECTIONS.liveRequests).doc();
   await ref.set({
@@ -42,16 +45,13 @@ export async function POST(req: Request) {
     clientId: user.uid,
     serviceId,
     status: "pending_payment",
-    priceCents: service.defaultPriceCents,
-    platformFeeCents: platformFeeCents(service.defaultPriceCents),
+    priceCents,
+    platformFeeCents: platformFeeCents(priceCents),
     intake: body.intake ?? {},
     photoPaths: Array.isArray(body.photoPaths) ? body.photoPaths : [],
     createdAt: now,
     updatedAt: now,
   });
 
-  return NextResponse.json({
-    liveRequestId: ref.id,
-    priceCents: service.defaultPriceCents,
-  });
+  return NextResponse.json({ liveRequestId: ref.id, priceCents });
 }

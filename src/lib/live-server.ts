@@ -10,6 +10,18 @@ import type { ServiceType } from "@/lib/types";
 export const LIVE_FRESH_MS = 45_000;
 /** How long a paid request keeps searching before it's considered expired. */
 export const LIVE_SEARCH_MS = 120_000;
+/** Default premium price for a No-Wait Live (no-appointment) visit. */
+export const DEFAULT_LIVE_PRICE_CENTS = 7500;
+
+/** Admin-configurable flat price for real-time visits (settings/live). */
+export async function getLivePriceCents(): Promise<number> {
+  const snap = await adminDb
+    .collection(COLLECTIONS.settings)
+    .doc("live")
+    .get();
+  const v = snap.get("realtimePriceCents");
+  return Number.isFinite(v) && v > 0 ? v : DEFAULT_LIVE_PRICE_CENTS;
+}
 
 function isFresh(lastSeenAt: number | undefined, now: number): boolean {
   return !!lastSeenAt && lastSeenAt > now - LIVE_FRESH_MS;

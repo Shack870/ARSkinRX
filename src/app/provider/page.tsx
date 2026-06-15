@@ -21,6 +21,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { GoLiveToggle } from "@/components/live/go-live-toggle";
+import { LiveBadge } from "@/components/live/live-badge";
 import type { Appointment } from "@/lib/types";
 
 export default function ProviderOverview() {
@@ -173,8 +174,9 @@ function AppointmentRow({ appt }: { appt: Appointment }) {
   return (
     <li className="flex items-center justify-between gap-3 py-3">
       <Link href={`/provider/appointments/${appt.id}`} className="min-w-0 flex-1">
-        <p className="truncate font-medium hover:text-[var(--primary)]">
+        <p className="flex items-center gap-2 truncate font-medium hover:text-[var(--primary)]">
           {service?.name ?? appt.serviceId}
+          {appt.isLive && <LiveBadge />}
         </p>
         <p className="text-sm text-[var(--muted-foreground)]">
           {formatDateTime(appt.start)}

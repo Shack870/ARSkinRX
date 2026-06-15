@@ -23,6 +23,8 @@ export default function AdminServicesPage() {
   const [rows, setRows] = React.useState<SvcRow[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [savingId, setSavingId] = React.useState<string | null>(null);
+  const [livePrice, setLivePrice] = React.useState("");
+  const [savingLive, setSavingLive] = React.useState(false);
 
   const load = React.useCallback(() => {
     authedFetch("/api/admin/services")
@@ -36,9 +38,32 @@ export default function AdminServicesPage() {
         ),
       )
       .finally(() => setLoading(false));
+    authedFetch("/api/admin/settings")
+      .then((r) => r.json())
+      .then((d) =>
+        setLivePrice(((d.realtimePriceCents ?? 7500) / 100).toFixed(0)),
+      )
+      .catch(() => {});
   }, []);
 
   React.useEffect(() => load(), [load]);
+
+  async function saveLivePrice() {
+    setSavingLive(true);
+    try {
+      const dollars = Number(livePrice);
+      const res = await authedFetch("/api/admin/settings", {
+        method: "PUT",
+        body: JSON.stringify({ realtimePriceCents: Math.round(dollars * 100) }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success("Real-time price updated");
+    } catch {
+      toast.error("Couldn't update real-time price");
+    } finally {
+      setSavingLive(false);
+    }
+  }
 
   function update(id: string, patch: Partial<SvcRow & { price: string }>) {
     setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)));
@@ -76,6 +101,42 @@ export default function AdminServicesPage() {
       </div>
 
       <Card className="p-6">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="font-semibold">Real-Time (No-Wait) visit price</h2>
+            <p className="text-sm text-[var(--muted-foreground)]">
+              Flat premium price for on-demand visits, charged regardless of
+              condition.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="relative w-28">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[var(--muted-foreground)]">
+                $
+              </span>
+              <Input
+                inputMode="numeric"
+                className="pl-6"
+                value={livePrice}
+                onChange={(e) =>
+                  setLivePrice(e.target.value.replace(/[^0-9]/g, ""))
+                }
+              />
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={savingLive}
+              onClick={saveLivePrice}
+            >
+              {savingLive ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+            </Button>
+          </div>
+        </div>
+      </Card>
+
+      <Card className="p-6">
+        <h2 className="mb-4 font-semibold">Scheduled visit prices</h2>
         {loading ? (
           <Loader2 className="h-6 w-6 animate-spin text-[var(--primary)]" />
         ) : (

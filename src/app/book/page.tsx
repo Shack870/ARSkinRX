@@ -104,12 +104,12 @@ function BookInner() {
   const [photoPaths, setPhotoPaths] = React.useState<string[]>([]);
   const [uploadingPhoto, setUploadingPhoto] = React.useState(false);
   const [liveAvailable, setLiveAvailable] = React.useState(false);
-  const [mode, setMode] = React.useState<"schedule" | "live">("schedule");
+  const [livePriceCents, setLivePriceCents] = React.useState(7500);
   const [startingLive, setStartingLive] = React.useState(false);
 
   const service = serviceId ? getService(serviceId) : null;
 
-  // Load providers + live availability when entering the provider step.
+  // Load providers when entering the provider step.
   React.useEffect(() => {
     if (step !== 1 || !serviceId) return;
     setLoadingProviders(true);
@@ -117,9 +117,17 @@ function BookInner() {
       .then((r) => r.json())
       .then((d) => setProviders(d.providers ?? []))
       .finally(() => setLoadingProviders(false));
+  }, [step, serviceId]);
+
+  // Re-check live availability on the provider and time steps.
+  React.useEffect(() => {
+    if (!serviceId || (step !== 1 && step !== 3)) return;
     fetch(`/api/live/availability?serviceId=${serviceId}`)
       .then((r) => r.json())
-      .then((d) => setLiveAvailable(!!d.available))
+      .then((d) => {
+        setLiveAvailable(!!d.available);
+        if (d.realtimePriceCents) setLivePriceCents(d.realtimePriceCents);
+      })
       .catch(() => setLiveAvailable(false));
   }, [step, serviceId]);
 
@@ -370,34 +378,7 @@ function BookInner() {
             {/* Step 1: Provider */}
             {step === 1 && (
               <div>
-                {liveAvailable && (
-                  <button
-                    onClick={() => {
-                      setMode("live");
-                      setProvider(null);
-                      next();
-                    }}
-                    className="mb-5 flex w-full items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--primary)] bg-gradient-to-br from-[var(--primary)] to-[#27514d] p-4 text-left text-[var(--primary-foreground)] transition-transform hover:-translate-y-0.5"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15">
-                        <Zap className="h-5 w-5" />
-                      </span>
-                      <div>
-                        <p className="font-semibold">No-Wait Live Visit</p>
-                        <p className="text-sm text-[var(--primary-soft)]">
-                          A nurse is online now — connect instantly.
-                        </p>
-                      </div>
-                    </div>
-                    <span className="rounded-full bg-white/15 px-2.5 py-1 text-xs font-medium">
-                      Available
-                    </span>
-                  </button>
-                )}
-                <h2 className="mb-4 text-lg font-semibold">
-                  {liveAvailable ? "Or choose a provider to schedule" : "Choose a provider"}
-                </h2>
+                <h2 className="mb-4 text-lg font-semibold">Choose a provider</h2>
                 {loadingProviders ? (
                   <Loader2 className="mx-auto my-8 h-6 w-6 animate-spin text-[var(--primary)]" />
                 ) : providers.length === 0 ? (
@@ -411,7 +392,6 @@ function BookInner() {
                       <div key={p.uid} className="relative">
                       <button
                         onClick={() => {
-                          setMode("schedule");
                           setProvider(p);
                           setSlot(null);
                           next();
@@ -463,13 +443,6 @@ function BookInner() {
             {/* Step 2: Intake */}
             {step === 2 && (
               <div className="space-y-4">
-                {mode === "live" && (
-                  <div className="flex items-center gap-2 rounded-[var(--radius-md)] bg-[var(--primary-soft)] px-3 py-2 text-sm text-[var(--primary)]">
-                    <Zap className="h-4 w-4" />
-                    No-Wait Live — you&apos;ll connect with a nurse right after
-                    payment.
-                  </div>
-                )}
                 <h2 className="text-lg font-semibold">Tell us about it</h2>
                 <div>
                   <Label htmlFor="concern">
@@ -578,6 +551,39 @@ function BookInner() {
             {/* Step 3: Time */}
             {step === 3 && (
               <div>
+                {liveAvailable && (
+                  <div className="mb-6">
+                    <button
+                      onClick={startLiveVisit}
+                      disabled={startingLive}
+                      className="flex w-full items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--primary)] bg-gradient-to-br from-[var(--primary)] to-[#27514d] p-4 text-left text-[var(--primary-foreground)] transition-transform hover:-translate-y-0.5 disabled:opacity-70"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15">
+                          {startingLive ? (
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                          ) : (
+                            <Zap className="h-5 w-5" />
+                          )}
+                        </span>
+                        <div>
+                          <p className="font-semibold">Real Time Visit</p>
+                          <p className="text-sm text-[var(--primary-soft)]">
+                            No appointment — connect with a nurse now.
+                          </p>
+                        </div>
+                      </div>
+                      <span className="shrink-0 rounded-full bg-white/15 px-3 py-1 text-sm font-semibold">
+                        {formatCurrency(livePriceCents)}
+                      </span>
+                    </button>
+                    <div className="my-5 flex items-center gap-3 text-xs text-[var(--muted-foreground)]">
+                      <span className="h-px flex-1 bg-[var(--border)]" />
+                      OR PICK A SCHEDULED TIME
+                      <span className="h-px flex-1 bg-[var(--border)]" />
+                    </div>
+                  </div>
+                )}
                 <h2 className="mb-4 text-lg font-semibold">Pick a time</h2>
                 {loadingSlots ? (
                   <Loader2 className="mx-auto my-8 h-6 w-6 animate-spin text-[var(--primary)]" />
@@ -698,20 +704,7 @@ function BookInner() {
               ) : (
                 <span />
               )}
-              {step === 2 && mode === "live" && (
-                <Button
-                  onClick={startLiveVisit}
-                  disabled={!intake.concern.trim() || startingLive}
-                >
-                  {startingLive ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Zap className="h-4 w-4" />
-                  )}
-                  Pay &amp; connect now
-                </Button>
-              )}
-              {step === 2 && mode === "schedule" && (
+              {step === 2 && (
                 <Button onClick={next} disabled={!intake.concern.trim()}>
                   Continue <ArrowRight className="h-4 w-4" />
                 </Button>
