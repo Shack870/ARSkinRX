@@ -36,6 +36,18 @@ export interface ServiceDefinition {
   icon: string;
 }
 
+/** Per-user email/notification preferences. */
+export interface NotificationPrefs {
+  /** Booking confirmation / receipt email. */
+  receipt: boolean;
+  /** Reminder ~3 days before the visit. */
+  reminder3Day: boolean;
+  /** Reminder ~1 day before the visit. */
+  reminder1Day: boolean;
+  /** Reminder on the day of the visit. */
+  reminderDayOf: boolean;
+}
+
 /** Base profile for every authenticated user. */
 export interface UserProfile {
   uid: string;
@@ -45,6 +57,7 @@ export interface UserProfile {
   role: Role;
   /** Arkansas only for now; kept for future multi-state expansion. */
   state: string;
+  notificationPrefs?: NotificationPrefs;
   createdAt: number;
   updatedAt: number;
 }
@@ -145,6 +158,9 @@ export interface Appointment {
   holdExpiresAt?: number;
   /** True for on-demand "No-Wait Live" visits. */
   isLive?: boolean;
+  /** Timestamps of milestone reminders already sent, to avoid duplicates. */
+  remindersSent?: { threeDay?: number; oneDay?: number; dayOf?: number };
+  reminderSentAt?: number;
   createdAt: number;
   updatedAt: number;
 }

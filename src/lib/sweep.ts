@@ -3,9 +3,19 @@ import "server-only";
 import { adminDb } from "@/lib/firebase/admin";
 import { COLLECTIONS } from "@/lib/firebase/collections";
 import { getService } from "@/lib/services";
-import { sendEmail, sendSms } from "@/lib/notify";
-import { formatTime } from "@/lib/datetime";
+import { sendEmail, sendSms, reminderEmail } from "@/lib/notify";
+import { resolvePrefs } from "@/lib/notifications";
+import { formatTime, formatDateTime } from "@/lib/datetime";
 import type { NoShowParty, ServiceType } from "@/lib/types";
+
+const HOUR = 60 * 60 * 1000;
+
+function distanceLabel(untilMs: number): string {
+  if (untilMs <= 12 * HOUR) return "today";
+  const days = Math.round(untilMs / (24 * HOUR));
+  if (days <= 1) return "tomorrow";
+  return `in ${days} days`;
+}
 
 export interface SweepResult {
   noShows: number;
@@ -69,34 +79,80 @@ export async function runSweep(): Promise<SweepResult> {
   }
   await batch.commit();
 
-  // 2) Reminders for visits starting in the next ~15 minutes.
-  const soonSnap = await adminDb
+  // 2) Milestone email reminders (3-day, 1-day, day-of) + imminent SMS nudge,
+  //    for booked visits in the next 4 days. Each milestone fires once and is
+  //    gated by the patient's notification preferences.
+  const upcomingSnap = await adminDb
     .collection(COLLECTIONS.appointments)
     .where("start", ">=", now)
-    .where("start", "<=", now + 15 * 60 * 1000)
+    .where("start", "<=", now + 4 * 24 * HOUR)
     .get();
-  for (const docSnap of soonSnap.docs) {
+
+  const userCache = new Map<string, FirebaseFirestore.DocumentSnapshot>();
+  async function clientDoc(uid: string) {
+    if (userCache.has(uid)) return userCache.get(uid)!;
+    const snap = await adminDb.collection(COLLECTIONS.users).doc(uid).get();
+    userCache.set(uid, snap);
+    return snap;
+  }
+
+  for (const docSnap of upcomingSnap.docs) {
     const a = docSnap.data();
-    if (a.status !== "booked" || a.reminderSentAt) continue;
+    if (a.status !== "booked") continue;
+    const until = a.start - now;
+    const sent = a.remindersSent ?? {};
+    const updates: Record<string, unknown> = {};
+
     try {
-      const clientSnap = await adminDb
-        .collection(COLLECTIONS.users)
-        .doc(a.clientId)
-        .get();
-      const service = getService(a.serviceId as ServiceType);
-      const when = formatTime(a.start);
-      const phone = clientSnap.get("phone");
+      const clientSnap = await clientDoc(a.clientId);
+      const prefs = resolvePrefs(clientSnap.get("notificationPrefs"));
       const email = clientSnap.get("email");
-      const msg = `ARSkinRX: Your ${service?.name ?? "visit"} starts at ${when}. Join from your dashboard.`;
-      if (phone) await sendSms({ to: phone, body: msg });
-      if (email)
-        await sendEmail({
-          to: email,
-          subject: "Your ARSkinRX visit is starting soon",
-          html: `<p>${msg}</p>`,
-        });
-      await docSnap.ref.update({ reminderSentAt: now });
-      reminders++;
+      const phone = clientSnap.get("phone");
+      const name = (clientSnap.get("displayName") ?? "there").split(" ")[0];
+      const service = getService(a.serviceId as ServiceType);
+      const serviceName = service?.name ?? "visit";
+      const whenText = formatDateTime(a.start);
+
+      async function fireMilestone(
+        key: "threeDay" | "oneDay" | "dayOf",
+        prefOn: boolean,
+      ) {
+        if (sent[key] || !prefOn) return;
+        if (email) {
+          await sendEmail({
+            to: email,
+            ...reminderEmail({
+              name,
+              serviceName,
+              whenText,
+              daysLabel: distanceLabel(until),
+            }),
+          });
+        }
+        updates[`remindersSent.${key}`] = now;
+        reminders++;
+      }
+
+      if (until > 36 * HOUR && until <= 72 * HOUR) {
+        await fireMilestone("threeDay", prefs.reminder3Day);
+      } else if (until > 6 * HOUR && until <= 28 * HOUR) {
+        await fireMilestone("oneDay", prefs.reminder1Day);
+      } else if (until <= 12 * HOUR) {
+        await fireMilestone("dayOf", prefs.reminderDayOf);
+      }
+
+      // Imminent SMS nudge (~15 min before), independent of email prefs.
+      if (until <= 15 * 60 * 1000 && !a.reminderSentAt) {
+        if (phone) {
+          await sendSms({
+            to: phone,
+            body: `ARSkinRX: Your ${serviceName} starts at ${formatTime(a.start)}. Join from your dashboard.`,
+          });
+        }
+        updates.reminderSentAt = now;
+      }
+
+      if (Object.keys(updates).length) await docSnap.ref.update(updates);
     } catch {
       // best effort
     }

@@ -66,8 +66,13 @@ env:
   #   secret: turn-username
   # - variable: TURN_CREDENTIAL
   #   secret: turn-credential
+  # - variable: SENDGRID_API_KEY
+  #   secret: sendgrid-api-key
   # - variable: RESEND_API_KEY
   #   secret: resend-api-key
+  # - variable: NOTIFY_FROM_EMAIL
+  #   value: ARSkinRX <care@arskinrx.com>
+  #   availability: [RUNTIME]
   # - variable: TWILIO_ACCOUNT_SID
   #   secret: twilio-account-sid
   # - variable: TWILIO_AUTH_TOKEN

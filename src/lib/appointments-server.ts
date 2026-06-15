@@ -5,7 +5,9 @@ import { adminDb } from "@/lib/firebase/admin";
 import { COLLECTIONS } from "@/lib/firebase/collections";
 import { getService } from "@/lib/services";
 import { sendEmail, sendSms, bookingConfirmedEmail } from "@/lib/notify";
+import { resolvePrefs } from "@/lib/notifications";
 import { formatDateTime } from "@/lib/datetime";
+import { formatCurrency } from "@/lib/utils";
 import type { ServiceType } from "@/lib/types";
 
 interface ConfirmPaymentInfo {
@@ -70,19 +72,21 @@ export async function confirmAppointmentBooked(
     const email = clientSnap.get("email");
     const phone = clientSnap.get("phone");
     const name = (clientSnap.get("displayName") ?? "there").split(" ")[0];
+    const prefs = resolvePrefs(clientSnap.get("notificationPrefs"));
     const service = getService(appt.serviceId as ServiceType);
     const whenText = formatDateTime(appt.start);
-    if (email) {
+    if (prefs.receipt && email) {
       await sendEmail({
         to: email,
         ...bookingConfirmedEmail({
           name,
           serviceName: service?.name ?? "visit",
           whenText,
+          amountText: formatCurrency(payment.amountCents),
         }),
       });
     }
-    if (phone) {
+    if (prefs.receipt && phone) {
       await sendSms({
         to: phone,
         body: `ARSkinRX: Your ${service?.name ?? "visit"} is booked for ${whenText}. Join from your dashboard.`,
