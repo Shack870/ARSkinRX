@@ -49,7 +49,7 @@ const q = await db
   .where("conditions", "array-contains", "hair-growth")
   .get();
 const fresh = q.docs.filter(
-  (d) => d.get("busy") !== true && (d.get("lastSeenAt") || 0) > now - 45000,
+  (d) => d.get("busy") !== true && (d.get("lastSeenAt") || 0) > now - 30 * 60 * 1000,
 );
 console.log(`matched online docs: ${q.size}, fresh & free: ${fresh.length}`);
 process.exit(0);

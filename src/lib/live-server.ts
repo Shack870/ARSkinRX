@@ -7,8 +7,10 @@ import { getService } from "@/lib/services";
 import type { ServiceType } from "@/lib/types";
 
 /** A heartbeat older than this means the provider has dropped from the pool.
- *  Generous enough to tolerate background-tab timer throttling. */
-export const LIVE_FRESH_MS = 90_000;
+ *  Wide enough that a backgrounded/frozen nurse tab (whose heartbeat the
+ *  browser pauses) still counts as online; explicit "Go offline" and the
+ *  search-timeout/incoming-prompt cover abandoned sessions. */
+export const LIVE_FRESH_MS = 30 * 60 * 1000;
 /** How long a paid request keeps searching before it's considered expired. */
 export const LIVE_SEARCH_MS = 120_000;
 /** Default premium price for a No-Wait Live (no-appointment) visit. */
