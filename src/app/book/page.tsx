@@ -4,7 +4,7 @@ import * as React from "react";
 import { Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, ArrowRight, Loader2, Star, Zap } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2, Star } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Steps } from "@/components/ui/steps";
 import { HoldTimer } from "@/components/hold-timer";
+import { LiveConnectCard } from "@/components/live/live-connect-card";
 import { useAuth } from "@/lib/auth-context";
 import { authedFetch } from "@/lib/api-client";
 import { uploadIntakePhoto } from "@/lib/storage";
@@ -551,39 +552,20 @@ function BookInner() {
             {/* Step 3: Time */}
             {step === 3 && (
               <div>
-                {liveAvailable && (
-                  <div className="mb-6">
-                    <button
-                      onClick={startLiveVisit}
-                      disabled={startingLive}
-                      className="flex w-full items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--primary)] bg-gradient-to-br from-[var(--primary)] to-[#27514d] p-4 text-left text-[var(--primary-foreground)] transition-transform hover:-translate-y-0.5 disabled:opacity-70"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15">
-                          {startingLive ? (
-                            <Loader2 className="h-5 w-5 animate-spin" />
-                          ) : (
-                            <Zap className="h-5 w-5" />
-                          )}
-                        </span>
-                        <div>
-                          <p className="font-semibold">Real Time Visit</p>
-                          <p className="text-sm text-[var(--primary-soft)]">
-                            No appointment — connect with a nurse now.
-                          </p>
-                        </div>
-                      </div>
-                      <span className="shrink-0 rounded-full bg-white/15 px-3 py-1 text-sm font-semibold">
-                        {formatCurrency(livePriceCents)}
-                      </span>
-                    </button>
-                    <div className="my-5 flex items-center gap-3 text-xs text-[var(--muted-foreground)]">
-                      <span className="h-px flex-1 bg-[var(--border)]" />
-                      OR PICK A SCHEDULED TIME
-                      <span className="h-px flex-1 bg-[var(--border)]" />
-                    </div>
+                <div className="mb-6">
+                  <LiveConnectCard
+                    providers={providers}
+                    available={liveAvailable}
+                    priceCents={livePriceCents}
+                    starting={startingLive}
+                    onStart={startLiveVisit}
+                  />
+                  <div className="my-5 flex items-center gap-3 text-xs text-[var(--muted-foreground)]">
+                    <span className="h-px flex-1 bg-[var(--border)]" />
+                    OR SCHEDULE AHEAD
+                    <span className="h-px flex-1 bg-[var(--border)]" />
                   </div>
-                )}
+                </div>
                 <h2 className="mb-4 text-lg font-semibold">Pick a time</h2>
                 {loadingSlots ? (
                   <Loader2 className="mx-auto my-8 h-6 w-6 animate-spin text-[var(--primary)]" />
