@@ -165,6 +165,9 @@ export interface Appointment {
   /** Timestamps of milestone reminders already sent, to avoid duplicates. */
   remindersSent?: { threeDay?: number; oneDay?: number; dayOf?: number };
   reminderSentAt?: number;
+  /** Patient's rating of the visit (1-5) and when it was left. */
+  rating?: number;
+  ratedAt?: number;
   createdAt: number;
   updatedAt: number;
 }

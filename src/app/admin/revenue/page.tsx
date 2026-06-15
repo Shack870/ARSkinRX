@@ -7,6 +7,7 @@ import { authedFetch } from "@/lib/api-client";
 import { formatCurrency } from "@/lib/utils";
 import { downloadCsv } from "@/lib/csv";
 import { Card } from "@/components/ui/card";
+import { RevenueChart } from "@/components/admin/revenue-chart";
 
 interface ProviderRow {
   providerId: string;
@@ -33,6 +34,7 @@ interface Totals {
 export default function AdminRevenuePage() {
   const [providers, setProviders] = React.useState<ProviderRow[]>([]);
   const [totals, setTotals] = React.useState<Totals | null>(null);
+  const [series, setSeries] = React.useState<{ date: number; grossCents: number }[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [range, setRange] = React.useState("all");
 
@@ -43,6 +45,7 @@ export default function AdminRevenuePage() {
       .then((d) => {
         setProviders(d.providers ?? []);
         setTotals(d.totals ?? null);
+        setSeries(d.series ?? []);
       })
       .finally(() => setLoading(false));
   }, [range]);
@@ -107,6 +110,11 @@ export default function AdminRevenuePage() {
             <Stat label="Paid to nurses (50%)" value={formatCurrency(totals?.earningsCents ?? 0)} />
             <Stat label="Completed visits" value={String(totals?.completed ?? 0)} />
           </div>
+
+          <Card className="p-6">
+            <h2 className="mb-4 font-semibold">Gross revenue over time</h2>
+            <RevenueChart series={series} />
+          </Card>
 
           <Card className="p-6">
             <div className="mb-4 flex items-center gap-2">

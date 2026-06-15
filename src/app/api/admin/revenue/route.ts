@@ -43,11 +43,24 @@ export async function GET(req: Request) {
   const snap = await adminDb.collection(COLLECTIONS.appointments).get();
   const map = new Map<string, ProviderAgg>();
 
+  // Daily gross series for the chart (over the range, default last 30 days).
+  const seriesStart = cutoff || now - 30 * 86_400_000;
+  const dayMs = 86_400_000;
+  const dailyGross = new Map<number, number>();
+  const dayKey = (t: number) => {
+    const d = new Date(t);
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  };
+
   for (const doc of snap.docs) {
     const a = doc.data();
     const pid = a.providerId as string | undefined;
     if (!pid) continue;
     if (cutoff && (a.start ?? 0) < cutoff) continue;
+    if (a.status === "completed" && (a.start ?? 0) >= seriesStart) {
+      const k = dayKey(a.start);
+      dailyGross.set(k, (dailyGross.get(k) ?? 0) + (a.priceCents ?? 0));
+    }
     const e =
       map.get(pid) ??
       ({
@@ -108,5 +121,11 @@ export async function GET(req: Request) {
     { grossCents: 0, platformCents: 0, earningsCents: 0, completed: 0, live: 0 },
   );
 
-  return NextResponse.json({ totals, providers });
+  // Build an ordered, gap-filled daily series from seriesStart → today.
+  const series: { date: number; grossCents: number }[] = [];
+  for (let t = dayKey(seriesStart); t <= dayKey(now); t += dayMs) {
+    series.push({ date: t, grossCents: dailyGross.get(t) ?? 0 });
+  }
+
+  return NextResponse.json({ totals, providers, series });
 }

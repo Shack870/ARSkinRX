@@ -9,6 +9,7 @@ import {
   CalendarClock,
   CheckCircle2,
   Loader2,
+  Star,
   Video,
 } from "lucide-react";
 import { useAppointment, useIntake, useVisitNote } from "@/lib/hooks";
@@ -26,6 +27,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useConfirm } from "@/components/ui/confirm";
+import { useToast } from "@/components/ui/toast";
 import type { Appointment } from "@/lib/types";
 
 export default function AppointmentDetailPage({
@@ -259,6 +261,9 @@ function Detail({ id }: { id: string }) {
               prescriptions will be shared as discussed.
             </p>
           )}
+          <div className="mt-5 border-t border-[var(--border)] pt-4">
+            <RateVisit appointment={appointment} />
+          </div>
         </Card>
       )}
 
@@ -446,6 +451,79 @@ function ReschedulePanel({
       )}
       {error && <p className="mt-3 text-sm text-[var(--accent)]">{error}</p>}
     </Card>
+  );
+}
+
+function RateVisit({ appointment }: { appointment: Appointment }) {
+  const toast = useToast();
+  const [hover, setHover] = React.useState(0);
+  const [submitting, setSubmitting] = React.useState(false);
+
+  if (appointment.rating) {
+    return (
+      <div>
+        <p className="text-sm font-medium">Your rating</p>
+        <div className="mt-1 flex gap-0.5">
+          {[1, 2, 3, 4, 5].map((n) => (
+            <Star
+              key={n}
+              className={
+                "h-5 w-5 " +
+                (n <= appointment.rating!
+                  ? "fill-amber-400 text-amber-400"
+                  : "text-[var(--border)]")
+              }
+            />
+          ))}
+        </div>
+        <p className="mt-1 text-xs text-[var(--muted-foreground)]">
+          Thanks for your feedback!
+        </p>
+      </div>
+    );
+  }
+
+  async function rate(value: number) {
+    setSubmitting(true);
+    try {
+      const res = await authedFetch(`/api/appointments/${appointment.id}/rate`, {
+        method: "POST",
+        body: JSON.stringify({ rating: value }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success("Thanks for rating your visit!");
+    } catch {
+      toast.error("Couldn't submit rating");
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div>
+      <p className="text-sm font-medium">How was your visit?</p>
+      <div className="mt-1 flex gap-1">
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button
+            key={n}
+            disabled={submitting}
+            onMouseEnter={() => setHover(n)}
+            onMouseLeave={() => setHover(0)}
+            onClick={() => rate(n)}
+            aria-label={`${n} star${n > 1 ? "s" : ""}`}
+            className="disabled:opacity-50"
+          >
+            <Star
+              className={
+                "h-7 w-7 transition-colors " +
+                (n <= hover
+                  ? "fill-amber-400 text-amber-400"
+                  : "text-[var(--border)] hover:text-amber-300")
+              }
+            />
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 
