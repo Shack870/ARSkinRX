@@ -126,8 +126,8 @@ export default function AdminPayoutsPage() {
                       <div>
                         <p className="font-medium">{o.providerName}</p>
                         <p className="text-sm text-[var(--muted-foreground)]">
-                          {o.visitCount} completed visit
-                          {o.visitCount > 1 ? "s" : ""}
+                          {o.visitCount} visit{o.visitCount > 1 ? "s" : ""} awaiting
+                          payout
                         </p>
                       </div>
                       <span className="text-lg font-semibold text-[var(--primary)]">
