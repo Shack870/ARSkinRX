@@ -52,16 +52,16 @@ export function LiveConnectCard({
   const current = providers[idx % Math.max(providers.length, 1)];
 
   return (
-    <div className="overflow-hidden rounded-[var(--radius-lg)] border-2 border-orange-400 bg-gradient-to-br from-orange-50 to-amber-50 p-5 shadow-sm">
+    <div className="overflow-hidden rounded-[var(--radius-lg)] border-2 border-[#d4af37] bg-gradient-to-br from-[#fbf6e3] to-[#f6edd2] p-5 shadow-sm">
       <div className="flex items-center justify-between gap-3">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-500 px-2.5 py-1 text-xs font-semibold text-white">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-[#c9a227] px-2.5 py-1 text-xs font-semibold text-white">
           <Zap className="h-3.5 w-3.5" /> No appointment needed
         </span>
         <span className="text-right">
-          <span className="block text-2xl font-bold leading-none text-orange-600">
+          <span className="block text-2xl font-bold leading-none text-[#9a7d18]">
             {formatCurrency(priceCents)}
           </span>
-          <span className="text-[11px] text-orange-700/70">flat, live now</span>
+          <span className="text-[11px] text-[#9a7d18]/70">flat, live now</span>
         </span>
       </div>
 
@@ -74,7 +74,7 @@ export function LiveConnectCard({
 
       {/* Rotating nurse profile */}
       <div className="mt-4 flex items-center gap-3 rounded-[var(--radius-md)] bg-white/70 p-3">
-        <span className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-orange-100 text-sm font-semibold text-orange-700">
+        <span className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#f3e7c2] text-sm font-semibold text-[#8a6d12]">
           {current?.photoURL ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -106,7 +106,7 @@ export function LiveConnectCard({
       <button
         onClick={onStart}
         disabled={starting}
-        className="mt-4 flex w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-orange-500 px-5 py-3.5 text-base font-semibold text-white shadow-sm transition-colors hover:bg-orange-600 disabled:opacity-70"
+        className="mt-4 flex w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-gradient-to-br from-[#d4af37] to-[#b8860b] px-5 py-3.5 text-base font-semibold text-white shadow-sm transition-opacity hover:opacity-90 disabled:opacity-70"
       >
         {starting ? (
           <Loader2 className="h-5 w-5 animate-spin" />

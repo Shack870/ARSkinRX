@@ -620,7 +620,7 @@ function BookInner() {
                     </p>
                     <p className="mt-1">
                       Try{" "}
-                      <span className="font-semibold text-orange-600">
+                      <span className="font-semibold text-[#9a7d18]">
                         Live Connect
                       </span>{" "}
                       above to see {provider?.displayName ?? "a nurse"} now, or go
