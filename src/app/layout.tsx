@@ -14,15 +14,35 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const APP_URL =
+  process.env.NEXT_PUBLIC_APP_URL ??
+  "https://arskin--arskinrx.us-east4.hosted.app";
+
+const TITLE = "ARSkinRX — Virtual Skin Care Clinic | Arkansas";
+const DESCRIPTION =
+  "Online dermatology visits with licensed Arkansas nurse practitioners. Book, pay, and meet by video for acne, anti-aging, rosacea, hair, nail health, and more.";
+
 export const metadata: Metadata = {
-  title: "ARSkinRX — Virtual Skin Care Clinic | Arkansas",
-  description:
-    "Online dermatology visits with licensed Arkansas nurse practitioners. Book, pay, and meet by video for acne, anti-aging, rosacea, hair, nail health, and more.",
+  metadataBase: new URL(APP_URL),
+  title: TITLE,
+  description: DESCRIPTION,
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     title: "ARSkinRX",
     statusBarStyle: "default",
+  },
+  openGraph: {
+    type: "website",
+    siteName: "ARSkinRX",
+    title: TITLE,
+    description: DESCRIPTION,
+    url: APP_URL,
+  },
+  twitter: {
+    card: "summary",
+    title: TITLE,
+    description: DESCRIPTION,
   },
 };
 

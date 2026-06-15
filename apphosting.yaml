@@ -48,6 +48,11 @@ env:
     secret: FIREBASE_SERVICE_ACCOUNT_BASE64
     availability: [RUNTIME]
 
+  # Shared secret for the maintenance sweep cron (Cloud Scheduler).
+  - variable: CRON_SECRET
+    secret: CRON_SECRET
+    availability: [RUNTIME]
+
   # ── Secrets (uncomment once created in Secret Manager) ──
   # - variable: STRIPE_SECRET_KEY
   #   secret: stripe-secret-key

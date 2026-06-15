@@ -1,37 +1,82 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ARSkinRX
 
-## Getting Started
+Online skin-care virtual clinic for Arkansas — booking, payments, live video
+visits, and "No-Wait Live" on-demand matching, with patient, nurse (APRN), and
+admin dashboards.
 
-First, run the development server:
+## Stack
+
+- **Next.js (App Router) + TypeScript + Tailwind v4**
+- **Firebase**: Auth, Firestore, Storage, Admin SDK; deployed on **App Hosting**
+- **Stripe** (Connect-ready) for payments — currently dev-bypass until keys added
+- **Raw WebRTC** video (Firestore signaling + optional TURN)
+- **SendGrid/Resend** (email) + **Twilio** (SMS) for notifications
+
+## Local development
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.example .env.local   # fill in values (see below)
+npm run dev                  # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Required env (`.env.local`)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- `NEXT_PUBLIC_FIREBASE_*` — Firebase web config (public)
+- `FIREBASE_SERVICE_ACCOUNT_BASE64` — base64 of a service-account JSON (server)
+- Optional until go-live: `STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`,
+  `STRIPE_WEBHOOK_SECRET`, `TURN_URLS`/`TURN_USERNAME`/`TURN_CREDENTIAL`,
+  `SENDGRID_API_KEY` (or `RESEND_API_KEY`), `TWILIO_*`, `CRON_SECRET`
+- `PLATFORM_FEE_BPS` — platform's share in basis points (`5000` = 50/50 split)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Useful scripts
 
-## Learn More
+```bash
+node scripts/admin.mjs list-providers
+node scripts/admin.mjs approve <email>
+node scripts/admin.mjs create-admin <email> <password>   # creates an admin login
+node scripts/set-role.mjs <email> <admin|provider|client>
+node scripts/set-live-price.mjs 99                         # set Live Connect price
+node scripts/check-live.mjs                                # debug live presence
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Roles & dashboards
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Patient** (`/dashboard`) — book, pay, waiting room, video visit, receipts, prefs
+- **Nurse** (`/provider`) — Go Live toggle, schedule, availability, earnings, in-call clinical panel
+- **Admin** (`/admin`) — revenue, providers, patients, appointments, payments, payouts, services, audit log
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Roles are enforced by a custom claim on the Firebase token and mirrored in
+`users/{uid}.role`. Firestore/Storage rules in `firestore.rules` / `storage.rules`.
 
-## Deploy on Vercel
+## Deploy
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+App Hosting builds automatically on **push to `main`** (GitHub `Shack870/ARSkinRX`).
+Production env/secrets are configured in `apphosting.yaml` (public vars) and Cloud
+Secret Manager (`FIREBASE_SERVICE_ACCOUNT_BASE64`, `CRON_SECRET`, and Stripe/Twilio
+when added).
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-# ARSkinRX
+```bash
+git push origin main                                  # triggers a rollout
+firebase deploy --only firestore:rules,firestore:indexes,storage --project arskinrx
+```
+
+The maintenance sweep (no-show detection, hold release, reminders) runs every 5
+minutes via Cloud Scheduler job `arskinrx-sweep` → `POST /api/appointments/sweep`.
+
+## Go-live checklist
+
+Engineering is complete; these are the remaining account/compliance steps:
+
+- [ ] **Stripe live mode**: add `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, and
+      `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` as secrets; enable Connect; add the webhook
+      endpoint (`/api/stripe/webhook`). (Test first with `sk_test_…` + card `4242…`.)
+- [ ] **TURN server** (Twilio/Metered/coturn): set `TURN_URLS/USERNAME/CREDENTIAL`
+      so video connects reliably across networks.
+- [ ] **Email/SMS**: add `SENDGRID_API_KEY` (or `RESEND_API_KEY`) + verified domain,
+      and `TWILIO_*` with an **A2P 10DLC-registered** number.
+- [ ] **Google Cloud BAA** signed (HIPAA), using only covered services.
+- [ ] **Attorney review** of Terms, Privacy/HIPAA, and Telehealth Consent (templates).
+- [ ] Create the admin account and approve providers.
+- [ ] Optional: custom domain on the App Hosting backend.
+```
