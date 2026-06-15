@@ -37,10 +37,8 @@ export async function GET(req: Request) {
         .collection(COLLECTIONS.users)
         .doc(d.id)
         .get();
-      const priceCents =
-        (serviceId && p.priceOverrides?.[serviceId]) ??
-        effective?.defaultPriceCents ??
-        0;
+      // Pricing is set centrally by admin (effective service price).
+      const priceCents = effective?.defaultPriceCents ?? 0;
       return {
         uid: d.id,
         displayName: userSnap.get("displayName") ?? "ARSkinRX Provider",

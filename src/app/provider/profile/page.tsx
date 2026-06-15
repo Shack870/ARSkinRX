@@ -8,11 +8,11 @@ import { COLLECTIONS } from "@/lib/firebase/collections";
 import { useAuth } from "@/lib/auth-context";
 import { useProviderProfile } from "@/lib/hooks";
 import { uploadProviderPhoto } from "@/lib/storage";
-import { SERVICES, SERVICE_MAP } from "@/lib/services";
+import { SERVICES } from "@/lib/services";
+import { formatCurrency } from "@/lib/utils";
 import { useToast } from "@/components/ui/toast";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CheckboxIndicator } from "@/components/ui/checkbox";
@@ -31,25 +31,38 @@ export default function ProviderProfilePage() {
   const { profile, loading } = useProviderProfile(user?.uid);
   const [bio, setBio] = React.useState("");
   const [conditions, setConditions] = React.useState<ServiceType[]>([]);
-  const [prices, setPrices] = React.useState<Record<string, string>>({});
   const [photoURL, setPhotoURL] = React.useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
+  const [priceMap, setPriceMap] = React.useState<Record<string, number>>(() =>
+    Object.fromEntries(SERVICES.map((s) => [s.id, s.defaultPriceCents])),
+  );
   const hydrated = React.useRef(false);
+
+  // Prices are set by ARSkinRX (admin) — fetch the current catalog to display.
+  React.useEffect(() => {
+    fetch("/api/services")
+      .then((r) => r.json())
+      .then((d) => {
+        if (Array.isArray(d.services)) {
+          setPriceMap(
+            Object.fromEntries(
+              d.services.map((s: { id: string; defaultPriceCents: number }) => [
+                s.id,
+                s.defaultPriceCents,
+              ]),
+            ),
+          );
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   React.useEffect(() => {
     if (loading || hydrated.current || !profile) return;
     setBio(profile.bio ?? "");
     setConditions(profile.conditions ?? []);
     setPhotoURL(profile.photoURL ?? null);
-    const initialPrices: Record<string, string> = {};
-    for (const s of SERVICES) {
-      const override = profile.priceOverrides?.[s.id];
-      initialPrices[s.id] = (
-        (override ?? s.defaultPriceCents) / 100
-      ).toFixed(0);
-    }
-    setPrices(initialPrices);
     hydrated.current = true;
   }, [profile, loading]);
 
@@ -82,19 +95,9 @@ export default function ProviderProfilePage() {
     if (!user) return;
     setSaving(true);
     try {
-      const priceOverrides: Partial<Record<ServiceType, number>> = {};
-      for (const id of conditions) {
-        const dollars = Number(prices[id]);
-        const def = SERVICE_MAP[id].defaultPriceCents;
-        if (Number.isFinite(dollars) && dollars > 0) {
-          const cents = Math.round(dollars * 100);
-          if (cents !== def) priceOverrides[id] = cents;
-        }
-      }
       await updateDoc(doc(db, COLLECTIONS.providers, user.uid), {
         bio,
         conditions,
-        priceOverrides,
         updatedAt: Date.now(),
       });
       toast.success("Profile saved");
@@ -206,44 +209,29 @@ export default function ProviderProfilePage() {
       </Card>
 
       <Card className="p-6">
-        <h2 className="font-semibold">Your prices</h2>
+        <h2 className="font-semibold">Visit prices</h2>
         <p className="mb-4 text-sm text-[var(--muted-foreground)]">
-          Set a price per visit for each condition you treat. Leave at the
-          suggested price or adjust within reason.
+          Prices are set by ARSkinRX. Here&apos;s what patients pay for each
+          condition you treat.
         </p>
         {selectedServices.length === 0 ? (
           <p className="text-sm text-[var(--muted-foreground)]">
-            Select the conditions you treat above to set prices.
+            Select the conditions you treat above to see their prices.
           </p>
         ) : (
-          <div className="space-y-3">
+          <ul className="divide-y divide-[var(--border)]">
             {selectedServices.map((s) => (
-              <div key={s.id} className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-medium">{s.name}</p>
-                  <p className="text-xs text-[var(--muted-foreground)]">
-                    Suggested ${(s.defaultPriceCents / 100).toFixed(0)}
-                  </p>
-                </div>
-                <div className="relative w-28">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[var(--muted-foreground)]">
-                    $
-                  </span>
-                  <Input
-                    inputMode="numeric"
-                    className="pl-6"
-                    value={prices[s.id] ?? ""}
-                    onChange={(e) =>
-                      setPrices((p) => ({
-                        ...p,
-                        [s.id]: e.target.value.replace(/[^0-9]/g, ""),
-                      }))
-                    }
-                  />
-                </div>
-              </div>
+              <li
+                key={s.id}
+                className="flex items-center justify-between py-2.5 text-sm"
+              >
+                <span className="font-medium">{s.name}</span>
+                <span className="font-medium text-[var(--primary)]">
+                  {formatCurrency(priceMap[s.id] ?? s.defaultPriceCents)}
+                </span>
+              </li>
             ))}
-          </div>
+          </ul>
         )}
       </Card>
 

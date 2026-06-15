@@ -64,9 +64,8 @@ export async function POST(req: Request) {
       { status: 409 },
     );
   }
-  const basePrice = effective?.defaultPriceCents ?? service.defaultPriceCents;
-  const priceCents =
-    providerSnap.get("priceOverrides")?.[serviceId] ?? basePrice;
+  // Pricing is controlled centrally by admin (effective service price).
+  const priceCents = effective?.defaultPriceCents ?? service.defaultPriceCents;
 
   const now = Date.now();
   const holdExpiresAt = now + HOLD_MINUTES * 60 * 1000;
