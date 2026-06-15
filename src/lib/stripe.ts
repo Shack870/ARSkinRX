@@ -13,7 +13,9 @@ export function getStripe(): Stripe | null {
   return cached;
 }
 
-export const PLATFORM_FEE_BPS = Number(process.env.PLATFORM_FEE_BPS ?? "2000");
+// Platform keeps this share of each visit; the rest is the nurse's earnings.
+// 5000 bps = 50% (a 50/50 split).
+export const PLATFORM_FEE_BPS = Number(process.env.PLATFORM_FEE_BPS ?? "5000");
 
 /** Platform fee in cents for a given gross amount. */
 export function platformFeeCents(amountCents: number): number {

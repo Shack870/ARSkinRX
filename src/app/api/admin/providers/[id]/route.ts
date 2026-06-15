@@ -21,7 +21,6 @@ export async function GET(
       .collection(COLLECTIONS.appointments)
       .where("providerId", "==", id)
       .orderBy("start", "desc")
-      .limit(50)
       .get(),
   ]);
   if (!pSnap.exists) {
@@ -30,8 +29,12 @@ export async function GET(
 
   const appts = apptSnap.docs.map((d) => d.data());
   const completed = appts.filter((a) => a.status === "completed");
+  const noShow = appts.filter((a) => a.status === "no_show").length;
+  const cancelled = appts.filter((a) => a.status === "cancelled").length;
+  const liveCompleted = completed.filter((a) => a.isLive).length;
   const net = (a: FirebaseFirestore.DocumentData) =>
     (a.priceCents ?? 0) - (a.platformFeeCents ?? 0);
+  const denom = completed.length + noShow;
 
   return NextResponse.json({
     provider: {
@@ -47,6 +50,12 @@ export async function GET(
     },
     earnings: {
       completedCount: completed.length,
+      liveCount: liveCompleted,
+      noShow,
+      cancelled,
+      noShowRate: denom > 0 ? noShow / denom : 0,
+      grossCents: completed.reduce((s, a) => s + (a.priceCents ?? 0), 0),
+      platformCents: completed.reduce((s, a) => s + (a.platformFeeCents ?? 0), 0),
       paidOutCents: completed
         .filter((a) => a.providerPaidAt)
         .reduce((s, a) => s + net(a), 0),
@@ -54,7 +63,7 @@ export async function GET(
         .filter((a) => !a.providerPaidAt)
         .reduce((s, a) => s + net(a), 0),
     },
-    appointments: appts.map((a) => ({
+    appointments: appts.slice(0, 50).map((a) => ({
       id: a.id,
       serviceId: a.serviceId,
       start: a.start,

@@ -24,7 +24,17 @@ interface Detail {
     status: string;
     bio: string;
   };
-  earnings: { completedCount: number; paidOutCents: number; pendingCents: number };
+  earnings: {
+    completedCount: number;
+    liveCount: number;
+    noShow: number;
+    cancelled: number;
+    noShowRate: number;
+    grossCents: number;
+    platformCents: number;
+    paidOutCents: number;
+    pendingCents: number;
+  };
   appointments: {
     id: string;
     serviceId: ServiceType;
@@ -117,10 +127,22 @@ export default function AdminProviderDetail({
         </div>
       </Card>
 
-      <div className="grid grid-cols-3 gap-4">
-        <StatCard label="Completed" value={String(earnings.completedCount)} />
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+        <StatCard label="Completed visits" value={String(earnings.completedCount)} />
+        <StatCard label="Live visits" value={String(earnings.liveCount)} />
+        <StatCard
+          label="No-shows"
+          value={`${earnings.noShow} (${Math.round(earnings.noShowRate * 100)}%)`}
+        />
+        <StatCard label="Gross generated" value={formatCurrency(earnings.grossCents)} />
+        <StatCard label="Platform cut (50%)" value={formatCurrency(earnings.platformCents)} />
+        <StatCard
+          label="Nurse earnings"
+          value={formatCurrency(earnings.paidOutCents + earnings.pendingCents)}
+        />
         <StatCard label="Paid out" value={formatCurrency(earnings.paidOutCents)} />
-        <StatCard label="Pending" value={formatCurrency(earnings.pendingCents)} />
+        <StatCard label="Pending payout" value={formatCurrency(earnings.pendingCents)} />
+        <StatCard label="Cancelled" value={String(earnings.cancelled)} />
       </div>
 
       <Card className="p-6">

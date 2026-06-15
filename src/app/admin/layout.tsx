@@ -7,6 +7,7 @@ import {
   ListChecks,
   ScrollText,
   Stethoscope,
+  TrendingUp,
   Users,
   Wallet,
 } from "lucide-react";
@@ -14,6 +15,7 @@ import { DashboardShell, type NavItem } from "@/components/dashboard/dashboard-s
 
 const NAV: NavItem[] = [
   { label: "Overview", href: "/admin", icon: LayoutDashboard },
+  { label: "Revenue", href: "/admin/revenue", icon: TrendingUp },
   { label: "Providers", href: "/admin/providers", icon: Stethoscope },
   { label: "Patients", href: "/admin/patients", icon: Users },
   { label: "Appointments", href: "/admin/appointments", icon: CalendarRange },

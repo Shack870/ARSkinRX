@@ -56,9 +56,9 @@ env:
   #   availability: [BUILD, RUNTIME]
   # - variable: STRIPE_WEBHOOK_SECRET
   #   secret: stripe-webhook-secret
-  # - variable: PLATFORM_FEE_BPS
-  #   value: "2000"
-  #   availability: [RUNTIME]
+  - variable: PLATFORM_FEE_BPS
+    value: "5000"
+    availability: [RUNTIME]
   # - variable: TURN_URLS
   #   value: turn:turn.example.com:3478
   #   availability: [RUNTIME]
