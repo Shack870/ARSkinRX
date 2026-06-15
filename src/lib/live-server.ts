@@ -13,6 +13,10 @@ import type { ServiceType } from "@/lib/types";
 export const LIVE_FRESH_MS = 30 * 60 * 1000;
 /** How long a paid request keeps searching before it's considered expired. */
 export const LIVE_SEARCH_MS = 120_000;
+/** How long a single nurse has to respond to a round-robin offer. */
+export const OFFER_TTL_MS = 15_000;
+/** Overall safety cap for a live request. */
+export const LIVE_MAX_MS = 5 * 60_000;
 /** Default premium price for a No-Wait Live (no-appointment) visit. */
 export const DEFAULT_LIVE_PRICE_CENTS = 9900;
 
@@ -55,21 +59,112 @@ export interface LiveOffer {
   id: string;
   serviceId: ServiceType;
   priceCents: number;
-  createdAt: number;
+  offerExpiresAt: number;
+}
+
+export interface OrchestrateResult {
+  status: string;
+  offeredTo?: string | null;
+  appointmentId?: string;
 }
 
 /**
- * Live requests that an online, eligible provider may accept right now:
- * searching, unexpired, and matching one of the provider's conditions.
+ * Round-robin driver. Ensures a searching request has exactly one active offer
+ * to one nurse for up to 15s. On timeout, that nurse is marked declined and the
+ * next eligible nurse is pinged. When nobody's left, the request expires.
+ * Safe to call from multiple pollers (single transaction).
  */
+export async function orchestrateLiveRequest(
+  liveRequestId: string,
+): Promise<OrchestrateResult> {
+  const reqRef = adminDb.collection(COLLECTIONS.liveRequests).doc(liveRequestId);
+  let out: OrchestrateResult = { status: "searching" };
+
+  await adminDb.runTransaction(async (tx) => {
+    const reqSnap = await tx.get(reqRef);
+    if (!reqSnap.exists) {
+      out = { status: "not_found" };
+      return;
+    }
+    const req = reqSnap.data()!;
+    if (req.status !== "searching") {
+      out = { status: req.status, appointmentId: req.appointmentId };
+      return;
+    }
+    const now = Date.now();
+
+    // Overall safety cap.
+    if (req.createdAt && now - req.createdAt > LIVE_MAX_MS) {
+      tx.update(reqRef, {
+        status: "expired",
+        refundEligible: true,
+        offeredTo: null,
+        offerExpiresAt: null,
+        updatedAt: now,
+      });
+      out = { status: "expired" };
+      return;
+    }
+
+    // Current offer still active → leave it.
+    if (req.offeredTo && (req.offerExpiresAt ?? 0) > now) {
+      out = { status: "searching", offeredTo: req.offeredTo };
+      return;
+    }
+
+    // Advance: the previous nurse declined (timed out).
+    const declined = new Set<string>(req.declinedBy ?? []);
+    if (req.offeredTo) declined.add(req.offeredTo);
+
+    const candSnap = await tx.get(
+      adminDb
+        .collection(COLLECTIONS.presence)
+        .where("online", "==", true)
+        .where("conditions", "array-contains", req.serviceId),
+    );
+    const next = candSnap.docs
+      .filter(
+        (d) =>
+          d.get("busy") !== true &&
+          isFresh(d.get("lastSeenAt"), now) &&
+          !declined.has(d.id),
+      )
+      .sort((a, b) => (a.get("lastSeenAt") ?? 0) - (b.get("lastSeenAt") ?? 0))[0];
+
+    if (!next) {
+      tx.update(reqRef, {
+        status: "expired",
+        refundEligible: true,
+        offeredTo: null,
+        offerExpiresAt: null,
+        declinedBy: [...declined],
+        updatedAt: now,
+      });
+      out = { status: "expired" };
+      return;
+    }
+
+    tx.update(reqRef, {
+      offeredTo: next.id,
+      offerExpiresAt: now + OFFER_TTL_MS,
+      declinedBy: [...declined],
+      updatedAt: now,
+    });
+    out = { status: "searching", offeredTo: next.id };
+  });
+
+  return out;
+}
+
+/** The live request currently offered to this provider (their turn), if any. */
 export async function incomingForProvider(
   providerId: string,
 ): Promise<LiveOffer[]> {
+  const now = Date.now();
   const presSnap = await adminDb
     .collection(COLLECTIONS.presence)
     .doc(providerId)
     .get();
-  const now = Date.now();
   if (
     !presSnap.exists ||
     presSnap.get("online") !== true ||
@@ -78,27 +173,44 @@ export async function incomingForProvider(
   ) {
     return [];
   }
-  const conditions: ServiceType[] = presSnap.get("conditions") ?? [];
-  if (!conditions.length) return [];
 
   const snap = await adminDb
     .collection(COLLECTIONS.liveRequests)
-    .where("status", "==", "searching")
+    .where("offeredTo", "==", providerId)
     .get();
 
   return snap.docs
     .filter(
-      (d) =>
-        conditions.includes(d.get("serviceId")) &&
-        (!d.get("expiresAt") || d.get("expiresAt") > now),
+      (d) => d.get("status") === "searching" && (d.get("offerExpiresAt") ?? 0) > now,
     )
     .map((d) => ({
       id: d.id,
       serviceId: d.get("serviceId"),
       priceCents: d.get("priceCents") ?? 0,
-      createdAt: d.get("createdAt") ?? 0,
-    }))
-    .sort((a, b) => a.createdAt - b.createdAt);
+      offerExpiresAt: d.get("offerExpiresAt") ?? 0,
+    }));
+}
+
+/** A nurse declines their current offer; advance to the next nurse. */
+export async function declineLiveRequest(
+  liveRequestId: string,
+  providerId: string,
+): Promise<void> {
+  const reqRef = adminDb.collection(COLLECTIONS.liveRequests).doc(liveRequestId);
+  await adminDb.runTransaction(async (tx) => {
+    const snap = await tx.get(reqRef);
+    if (!snap.exists || snap.get("status") !== "searching") return;
+    if (snap.get("offeredTo") !== providerId) return;
+    const declined = new Set<string>(snap.get("declinedBy") ?? []);
+    declined.add(providerId);
+    tx.update(reqRef, {
+      declinedBy: [...declined],
+      offeredTo: null,
+      offerExpiresAt: null,
+      updatedAt: Date.now(),
+    });
+  });
+  await orchestrateLiveRequest(liveRequestId);
 }
 
 /**
@@ -130,8 +242,9 @@ export async function acceptLiveRequest(
       return;
     }
     const now = Date.now();
-    if (req.expiresAt && now > req.expiresAt) {
-      result = { ok: false, reason: "expired" };
+    // Only the nurse currently being pinged may accept, within their window.
+    if (req.offeredTo !== providerId || (req.offerExpiresAt ?? 0) <= now) {
+      result = { ok: false, reason: "taken" };
       return;
     }
 
@@ -204,6 +317,8 @@ export async function acceptLiveRequest(
       status: "matched",
       providerId,
       appointmentId: apptRef.id,
+      offeredTo: null,
+      offerExpiresAt: null,
       updatedAt: now,
     });
 

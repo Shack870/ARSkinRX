@@ -203,6 +203,11 @@ export interface LiveRequest {
   providerId?: string;
   appointmentId?: string;
   refundEligible?: boolean;
+  /** Round-robin offer state: the nurse currently being pinged. */
+  offeredTo?: string | null;
+  offerExpiresAt?: number | null;
+  /** Nurses who declined or timed out (not pinged again). */
+  declinedBy?: string[];
   createdAt: number;
   updatedAt: number;
   expiresAt?: number;
