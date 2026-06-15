@@ -24,6 +24,7 @@ interface Overview {
   grossCents: number;
   platformCents: number;
   owedToProvidersCents: number;
+  nursesOnline: number;
 }
 
 export default function AdminOverview() {
@@ -78,6 +79,18 @@ export default function AdminOverview() {
         </p>
       ) : (
         <>
+          {data.nursesOnline > 0 && (
+            <Card className="border-emerald-200 bg-emerald-50 p-4">
+              <p className="flex items-center gap-2 text-sm font-medium text-emerald-800">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                </span>
+                {data.nursesOnline} nurse{data.nursesOnline > 1 ? "s" : ""} live
+                now for real-time visits
+              </p>
+            </Card>
+          )}
           {data.pendingProviders > 0 && (
             <Card className="border-amber-200 bg-amber-50 p-4">
               <div className="flex items-center justify-between gap-3">

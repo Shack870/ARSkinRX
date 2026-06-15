@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase/admin";
 import { COLLECTIONS } from "@/lib/firebase/collections";
 import { requireAdmin } from "@/lib/api-auth";
+import { LIVE_FRESH_MS } from "@/lib/live-server";
 
 export async function GET(req: Request) {
   const admin = await requireAdmin(req);
@@ -53,6 +54,15 @@ export async function GET(req: Request) {
     0,
   );
 
+  // Nurses currently live (online with a fresh heartbeat).
+  const presenceSnap = await adminDb
+    .collection(COLLECTIONS.presence)
+    .where("online", "==", true)
+    .get();
+  const nursesOnline = presenceSnap.docs.filter(
+    (d) => (d.get("lastSeenAt") ?? 0) > now - LIVE_FRESH_MS,
+  ).length;
+
   return NextResponse.json({
     providers: providersSnap.data().count,
     pendingProviders: pendingSnap.data().count,
@@ -60,6 +70,7 @@ export async function GET(req: Request) {
     grossCents,
     platformCents,
     owedToProvidersCents,
+    nursesOnline,
     generatedAt: now,
   });
 }

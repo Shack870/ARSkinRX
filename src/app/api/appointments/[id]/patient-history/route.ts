@@ -38,6 +38,24 @@ export async function GET(
   const prior = priorSnap.docs.filter((d) => d.id !== id);
   const pastVisitCount = prior.length;
 
+  // Build a short visit-history list (with provider names).
+  const nameCache = new Map<string, string>();
+  async function providerName(uid: string) {
+    if (nameCache.has(uid)) return nameCache.get(uid)!;
+    const u = await adminDb.collection(COLLECTIONS.users).doc(uid).get();
+    const n = u.get("displayName") ?? "—";
+    nameCache.set(uid, n);
+    return n;
+  }
+  const visits = await Promise.all(
+    prior.slice(0, 8).map(async (d) => ({
+      appointmentId: d.id,
+      serviceId: d.get("serviceId"),
+      start: d.get("start"),
+      providerName: await providerName(d.get("providerId")),
+    })),
+  );
+
   let lastVisit: unknown = null;
   for (const d of prior) {
     const notesSnap = await adminDb
@@ -63,5 +81,5 @@ export async function GET(
     }
   }
 
-  return NextResponse.json({ pastVisitCount, lastVisit });
+  return NextResponse.json({ pastVisitCount, lastVisit, visits });
 }

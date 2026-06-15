@@ -11,8 +11,9 @@ import { COLLECTIONS } from "@/lib/firebase/collections";
 import { authedFetch } from "@/lib/api-client";
 import { useAppointment, useIntake, useUserProfile, useVisitNote } from "@/lib/hooks";
 import { SERVICE_MAP } from "@/lib/services";
-import { formatDateTime } from "@/lib/datetime";
+import { formatDate, formatDateTime } from "@/lib/datetime";
 import { formatCurrency } from "@/lib/utils";
+import type { ServiceType } from "@/lib/types";
 import { isJoinable } from "@/lib/appointment-window";
 import { useToast } from "@/components/ui/toast";
 import { Card } from "@/components/ui/card";
@@ -45,7 +46,18 @@ export default function ProviderAppointmentDetail({
     prescribed: "",
   });
   const [saving, setSaving] = React.useState(false);
+  const [history, setHistory] = React.useState<{
+    pastVisitCount: number;
+    visits: { appointmentId: string; serviceId: ServiceType; start: number; providerName: string }[];
+  } | null>(null);
   const hydrated = React.useRef(false);
+
+  React.useEffect(() => {
+    authedFetch(`/api/appointments/${id}/patient-history`)
+      .then((r) => r.json())
+      .then((d) => setHistory(d))
+      .catch(() => {});
+  }, [id]);
 
   React.useEffect(() => {
     if (hydrated.current || !note) return;
@@ -196,6 +208,31 @@ export default function ProviderAppointmentDetail({
         <IntakeSummary intake={intake} />
         <IntakePhotos paths={intake?.photoPaths ?? []} />
       </Card>
+
+      {history && history.visits.length > 0 && (
+        <Card className="p-6">
+          <h2 className="mb-1 font-semibold">Patient history</h2>
+          <p className="mb-4 text-sm text-[var(--muted-foreground)]">
+            {history.pastVisitCount} prior visit
+            {history.pastVisitCount > 1 ? "s" : ""} with ARSkinRX.
+          </p>
+          <ul className="divide-y divide-[var(--border)]">
+            {history.visits.map((v) => (
+              <li
+                key={v.appointmentId}
+                className="flex items-center justify-between gap-3 py-2.5 text-sm"
+              >
+                <span className="font-medium">
+                  {SERVICE_MAP[v.serviceId]?.name ?? v.serviceId}
+                </span>
+                <span className="text-[var(--muted-foreground)]">
+                  {formatDate(v.start)} · {v.providerName}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       <Card className="p-6">
         <h2 className="font-semibold">Visit notes</h2>

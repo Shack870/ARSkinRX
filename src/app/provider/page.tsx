@@ -33,8 +33,9 @@ export default function ProviderOverview() {
   const today = appointments.filter(
     (a) => isToday(a.start) && a.status !== "cancelled",
   );
+  // Upcoming excludes today's visits so it never double-counts with "today".
   const upcoming = appointments.filter(
-    (a) => a.start > now && a.status === "booked",
+    (a) => a.start > now && a.status === "booked" && !isToday(a.start),
   );
   const completedThisMonth = appointments.filter((a) => {
     const d = new Date(a.start);

@@ -184,6 +184,18 @@ export function VideoRoom({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appointment.id, callRole]);
 
+  // Patient: if the provider completes/closes the visit, end gracefully.
+  React.useEffect(() => {
+    if (callRole !== "client") return;
+    return onSnapshot(doc(db, COLLECTIONS.appointments, appointment.id), (snap) => {
+      const s = snap.get("status");
+      if (s === "completed" || s === "cancelled" || s === "no_show") {
+        cleanup();
+        setStatus("ended");
+      }
+    });
+  }, [callRole, appointment.id, cleanup]);
+
   function toggleMic() {
     const track = localStreamRef.current?.getAudioTracks()[0];
     if (track) {
@@ -233,7 +245,17 @@ export function VideoRoom({
               ) : status === "ended" ? (
                 <>
                   <PhoneOff className="h-8 w-8 text-neutral-400" />
-                  <p className="text-sm text-neutral-300">Call ended</p>
+                  <p className="text-sm text-neutral-300">Your visit has ended</p>
+                  {callRole === "client" && (
+                    <Button
+                      className="mt-2"
+                      onClick={() =>
+                        router.push(`/dashboard/appointments/${appointment.id}`)
+                      }
+                    >
+                      View visit summary
+                    </Button>
+                  )}
                 </>
               ) : (
                 <>
