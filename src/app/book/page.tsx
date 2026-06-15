@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Steps } from "@/components/ui/steps";
 import { HoldTimer } from "@/components/hold-timer";
 import { LiveConnectCard } from "@/components/live/live-connect-card";
+import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth-context";
 import { authedFetch } from "@/lib/api-client";
 import { uploadIntakePhoto } from "@/lib/storage";
@@ -61,6 +62,7 @@ export default function BookPage() {
 function BookInner() {
   const router = useRouter();
   const params = useSearchParams();
+  const toast = useToast();
   const { user, loading: authLoading } = useAuth();
 
   const initialService = params.get("service")
@@ -267,7 +269,9 @@ function BookInner() {
       if (!coRes.ok) throw new Error(coData.error ?? "Payment failed.");
       window.location.href = coData.url;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong.");
+      const msg = e instanceof Error ? e.message : "Something went wrong.";
+      setError(msg);
+      toast.error("Live Connect unavailable", msg);
       setStartingLive(false);
     }
   }
@@ -558,27 +562,70 @@ function BookInner() {
             {/* Step 3: Time */}
             {step === 3 && (
               <div>
-                <div className="mb-6">
-                  <LiveConnectCard
-                    providers={providers}
-                    available={liveAvailable}
-                    priceCents={livePriceCents}
-                    starting={startingLive}
-                    onStart={startLiveVisit}
-                  />
-                  <div className="my-5 flex items-center gap-3 text-xs text-[var(--muted-foreground)]">
-                    <span className="h-px flex-1 bg-[var(--border)]" />
-                    OR SCHEDULE AHEAD
-                    <span className="h-px flex-1 bg-[var(--border)]" />
-                  </div>
+                <LiveConnectCard
+                  providers={providers}
+                  available={liveAvailable}
+                  priceCents={livePriceCents}
+                  starting={startingLive}
+                  onStart={startLiveVisit}
+                />
+
+                {/* Clear "or save by scheduling" alternative */}
+                <div className="my-6 flex items-center gap-3">
+                  <span className="h-px flex-1 bg-[var(--border)]" />
+                  <span className="text-sm font-semibold text-[var(--muted-foreground)]">
+                    OR
+                  </span>
+                  <span className="h-px flex-1 bg-[var(--border)]" />
                 </div>
-                <h2 className="mb-4 text-lg font-semibold">Pick a time</h2>
+
+                {(() => {
+                  const sched =
+                    provider?.priceCents ?? service?.defaultPriceCents ?? 0;
+                  const save = livePriceCents - sched;
+                  return (
+                    <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--muted)] p-5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <h2 className="text-lg font-semibold tracking-tight">
+                            Schedule ahead &amp; save
+                          </h2>
+                          <p className="mt-1 text-sm text-[var(--muted-foreground)]">
+                            Not in a rush? Book a time below for just{" "}
+                            <span className="font-semibold text-[var(--foreground)]">
+                              {formatCurrency(sched)}
+                            </span>{" "}
+                            when you plan at least a day ahead.
+                          </p>
+                        </div>
+                        {save > 0 && (
+                          <span className="shrink-0 rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700">
+                            Save {formatCurrency(save)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                <h3 className="mb-3 mt-6 text-sm font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
+                  Available times
+                </h3>
                 {loadingSlots ? (
                   <Loader2 className="mx-auto my-8 h-6 w-6 animate-spin text-[var(--primary)]" />
                 ) : slots.length === 0 ? (
-                  <div className="rounded-[var(--radius-md)] border border-dashed border-[var(--border)] py-10 text-center text-sm text-[var(--muted-foreground)]">
-                    {provider?.displayName} has no open times in the next two
-                    weeks. Try another provider.
+                  <div className="rounded-[var(--radius-md)] border border-dashed border-[var(--border)] p-6 text-center text-sm text-[var(--muted-foreground)]">
+                    <p className="font-medium text-[var(--foreground)]">
+                      No open times in the next two weeks
+                    </p>
+                    <p className="mt-1">
+                      Try{" "}
+                      <span className="font-semibold text-orange-600">
+                        Live Connect
+                      </span>{" "}
+                      above to see {provider?.displayName ?? "a nurse"} now, or go
+                      back to choose another provider.
+                    </p>
                   </div>
                 ) : (
                   <div className="space-y-5">
