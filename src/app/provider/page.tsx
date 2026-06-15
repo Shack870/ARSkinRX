@@ -6,6 +6,7 @@ import {
   CalendarClock,
   CheckCircle2,
   Clock,
+  Star,
   Video,
   Wallet,
 } from "lucide-react";
@@ -55,13 +56,26 @@ export default function ProviderOverview() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Welcome, {firstName}
-        </h1>
-        <p className="text-[var(--muted-foreground)]">
-          Here&apos;s what&apos;s happening with your practice today.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Welcome, {firstName}
+          </h1>
+          <p className="text-[var(--muted-foreground)]">
+            Here&apos;s what&apos;s happening with your practice today.
+          </p>
+        </div>
+        {provider && provider.ratingCount ? (
+          <div className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--card)] px-4 py-2 text-right">
+            <span className="flex items-center gap-1.5 text-lg font-semibold">
+              <Star className="h-5 w-5 fill-amber-400 text-amber-400" />
+              {(provider.ratingAvg ?? 0).toFixed(1)}
+            </span>
+            <p className="text-xs text-[var(--muted-foreground)]">
+              {provider.ratingCount} rating{provider.ratingCount > 1 ? "s" : ""}
+            </p>
+          </div>
+        ) : null}
       </div>
 
       <GoLiveToggle />

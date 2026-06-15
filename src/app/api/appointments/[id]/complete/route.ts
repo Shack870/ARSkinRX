@@ -3,6 +3,10 @@ import { adminDb } from "@/lib/firebase/admin";
 import { COLLECTIONS } from "@/lib/firebase/collections";
 import { verifyBearer } from "@/lib/api-auth";
 import { freeProvider } from "@/lib/live-server";
+import { sendEmail, visitSummaryEmail } from "@/lib/notify";
+import { resolvePrefs } from "@/lib/notifications";
+import { getService } from "@/lib/services";
+import type { ServiceType } from "@/lib/types";
 
 /**
  * POST /api/appointments/[id]/complete
@@ -58,5 +62,34 @@ export async function POST(
     await freeProvider(a.providerId);
   }
 
+  // Email the patient their visit summary (best effort, respects email prefs).
+  if (body.notes) {
+    try {
+      const clientSnap = await adminDb
+        .collection(COLLECTIONS.users)
+        .doc(a.clientId)
+        .get();
+      const prefs = resolvePrefs(clientSnap.get("notificationPrefs"));
+      const email = clientSnap.get("email");
+      if (prefs.receipt && email) {
+        const name = (clientSnap.get("displayName") ?? "there").split(" ")[0];
+        const service = getService(a.serviceId as ServiceType);
+        await sendEmail({
+          to: email,
+          ...visitSummaryEmail({
+            name,
+            serviceName: service?.name ?? "visit",
+            assessment: String(body.notes.assessment ?? ""),
+            plan: String(body.notes.plan ?? ""),
+            prescribed: String(body.notes.prescribed ?? ""),
+          }),
+        });
+      }
+    } catch {
+      // non-critical
+    }
+  }
+
   return NextResponse.json({ ok: true });
 }
+

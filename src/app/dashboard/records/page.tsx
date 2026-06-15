@@ -1,29 +1,69 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
-import { FileText, ChevronRight } from "lucide-react";
+import { doc, getDoc } from "firebase/firestore";
+import { FileText, ChevronRight, Download } from "lucide-react";
+import { db } from "@/lib/firebase/client";
+import { COLLECTIONS } from "@/lib/firebase/collections";
 import { useAuth } from "@/lib/auth-context";
 import { useClientAppointments, useVisitNote } from "@/lib/hooks";
 import { SERVICE_MAP } from "@/lib/services";
 import { formatDate } from "@/lib/datetime";
+import { downloadCsv } from "@/lib/csv";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { SkeletonRows } from "@/components/ui/skeleton";
 import type { Appointment } from "@/lib/types";
 
 export default function RecordsPage() {
   const { user } = useAuth();
   const { appointments, loading } = useClientAppointments(user?.uid);
+  const [exporting, setExporting] = React.useState(false);
   const completed = [...appointments]
     .filter((a) => a.status === "completed")
     .sort((a, b) => b.start - a.start);
 
+  async function exportRecords() {
+    setExporting(true);
+    try {
+      const rows = await Promise.all(
+        completed.map(async (a) => {
+          const snap = await getDoc(doc(db, COLLECTIONS.visitNotes, a.id));
+          return {
+            date: formatDate(a.start),
+            service: SERVICE_MAP[a.serviceId]?.name ?? a.serviceId,
+            assessment: snap.get("assessment") ?? "",
+            plan: snap.get("plan") ?? "",
+            prescribed: snap.get("prescribed") ?? "",
+          };
+        }),
+      );
+      downloadCsv("arskinrx-my-records.csv", rows);
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Your records</h1>
-        <p className="text-[var(--muted-foreground)]">
-          A summary of your past visits and care plans.
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Your records</h1>
+          <p className="text-[var(--muted-foreground)]">
+            A summary of your past visits and care plans.
+          </p>
+        </div>
+        {completed.length > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={exportRecords}
+            disabled={exporting}
+          >
+            <Download className="h-4 w-4" /> Export
+          </Button>
+        )}
       </div>
 
       {loading ? (

@@ -148,6 +148,35 @@ export function bookingConfirmedEmail(opts: {
   };
 }
 
+/** After-visit summary with the provider's plan. */
+export function visitSummaryEmail(opts: {
+  name: string;
+  serviceName: string;
+  assessment?: string;
+  plan?: string;
+  prescribed?: string;
+}) {
+  const block = (label: string, value?: string) =>
+    value
+      ? `<p style="margin:10px 0"><strong>${label}:</strong><br>${value.replace(/\n/g, "<br>")}</p>`
+      : "";
+  return {
+    subject: `Your ARSkinRX visit summary — ${opts.serviceName}`,
+    html: shell(`
+      <h2 style="color:#2f6f6a">Your visit summary</h2>
+      <p>Hi ${opts.name},</p>
+      <p>Thanks for your <strong>${opts.serviceName}</strong> visit. Here's the
+      summary from your provider:</p>
+      <div style="background:#f1efe9;padding:12px 14px;border-radius:8px">
+        ${block("Assessment", opts.assessment)}
+        ${block("Plan", opts.plan)}
+        ${block("Prescribed", opts.prescribed)}
+      </div>
+      <p>${button(`${APP_URL}/dashboard/records`, "View your records")}</p>
+    `),
+  };
+}
+
 /** Pre-visit reminder. `daysLabel` is the human distance, e.g. "in 3 days". */
 export function reminderEmail(opts: {
   name: string;
