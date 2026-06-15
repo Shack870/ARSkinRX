@@ -23,10 +23,11 @@ import { COLLECTIONS } from "@/lib/firebase/collections";
 import { authedFetch } from "@/lib/api-client";
 import { useIntake } from "@/lib/hooks";
 import { Button } from "@/components/ui/button";
-import { VisitNotesPanel } from "@/components/visit/visit-notes-panel";
+import { ProviderVisitPanel } from "@/components/visit/provider-visit-panel";
 import type { Appointment, Role } from "@/lib/types";
 
 type CallRole = "provider" | "client";
+type Status = "connecting" | "waiting" | "connected" | "error" | "ended";
 
 export function VideoRoom({
   appointment,
@@ -47,36 +48,28 @@ export function VideoRoom({
   const localStreamRef = React.useRef<MediaStream | null>(null);
   const unsubsRef = React.useRef<Array<() => void>>([]);
 
-  const [status, setStatus] = React.useState<
-    "connecting" | "waiting" | "connected" | "error"
-  >("connecting");
+  const [status, setStatus] = React.useState<Status>("connecting");
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   const [micOn, setMicOn] = React.useState(true);
   const [camOn, setCamOn] = React.useState(true);
-  const [ending, setEnding] = React.useState(false);
 
   const cleanup = React.useCallback(() => {
     unsubsRef.current.forEach((u) => u());
     unsubsRef.current = [];
     localStreamRef.current?.getTracks().forEach((t) => t.stop());
+    localStreamRef.current = null;
     pcRef.current?.close();
     pcRef.current = null;
   }, []);
 
   React.useEffect(() => {
     let cancelled = false;
-
     async function init() {
       try {
-        // 1) Mark joined + flip to in_progress.
         await authedFetch(`/api/appointments/${appointment.id}/join`, {
           method: "POST",
         });
-
-        // 2) ICE servers.
         const ice = await fetch("/api/turn").then((r) => r.json());
-
-        // 3) Local media.
         const localStream = await navigator.mediaDevices.getUserMedia({
           video: true,
           audio: true,
@@ -88,7 +81,6 @@ export function VideoRoom({
         localStreamRef.current = localStream;
         if (localRef.current) localRef.current.srcObject = localStream;
 
-        // 4) Peer connection.
         const pc = new RTCPeerConnection({ iceServers: ice.iceServers });
         pcRef.current = pc;
         const remoteStream = new MediaStream();
@@ -105,7 +97,7 @@ export function VideoRoom({
             pc.connectionState === "disconnected" ||
             pc.connectionState === "failed"
           ) {
-            setStatus("waiting");
+            setStatus((s) => (s === "ended" ? s : "waiting"));
           }
         };
 
@@ -114,7 +106,6 @@ export function VideoRoom({
         const answerCandidates = collection(callDoc, "answerCandidates");
 
         if (callRole === "provider") {
-          // Caller
           pc.onicecandidate = (e) => {
             if (e.candidate) addDoc(offerCandidates, e.candidate.toJSON());
           };
@@ -126,7 +117,6 @@ export function VideoRoom({
             { merge: true },
           );
           setStatus("waiting");
-
           unsubsRef.current.push(
             onSnapshot(callDoc, (snap) => {
               const data = snap.data();
@@ -138,21 +128,18 @@ export function VideoRoom({
           unsubsRef.current.push(
             onSnapshot(answerCandidates, (snap) => {
               snap.docChanges().forEach((c) => {
-                if (c.type === "added") {
+                if (c.type === "added")
                   pc.addIceCandidate(new RTCIceCandidate(c.doc.data())).catch(
                     () => {},
                   );
-                }
               });
             }),
           );
         } else {
-          // Callee
           pc.onicecandidate = (e) => {
             if (e.candidate) addDoc(answerCandidates, e.candidate.toJSON());
           };
           setStatus("waiting");
-
           unsubsRef.current.push(
             onSnapshot(callDoc, async (snap) => {
               const data = snap.data();
@@ -171,11 +158,10 @@ export function VideoRoom({
           unsubsRef.current.push(
             onSnapshot(offerCandidates, (snap) => {
               snap.docChanges().forEach((c) => {
-                if (c.type === "added") {
+                if (c.type === "added")
                   pc.addIceCandidate(new RTCIceCandidate(c.doc.data())).catch(
                     () => {},
                   );
-                }
               });
             }),
           );
@@ -184,15 +170,12 @@ export function VideoRoom({
         if (cancelled) return;
         setStatus("error");
         setErrorMsg(
-          e instanceof Error
-            ? e.message.includes("Permission") || e.name === "NotAllowedError"
-              ? "Camera/microphone access was blocked. Please allow access and reload."
-              : e.message
+          e instanceof Error && (e.name === "NotAllowedError" || e.message.includes("Permission"))
+            ? "Camera/microphone access was blocked. Please allow access and reload."
             : "Could not start the visit.",
         );
       }
     }
-
     init();
     return () => {
       cancelled = true;
@@ -216,106 +199,116 @@ export function VideoRoom({
     }
   }
 
-  async function endCall(notes?: Record<string, string>) {
-    setEnding(true);
-    try {
-      if (callRole === "provider") {
-        await authedFetch(`/api/appointments/${appointment.id}/complete`, {
-          method: "POST",
-          body: JSON.stringify({ notes }),
-        });
-      }
-    } catch {
-      // ignore
-    } finally {
-      cleanup();
-      router.push(
-        callRole === "provider"
-          ? "/provider/schedule"
-          : `/dashboard/appointments/${appointment.id}`,
-      );
-    }
+  // Disconnect video but stay on the page (provider keeps writing notes).
+  function hangUp() {
+    cleanup();
+    setStatus("ended");
   }
 
+  // Patient leaves entirely.
+  function leave() {
+    cleanup();
+    router.push(`/dashboard/appointments/${appointment.id}`);
+  }
+
+  const callEnded = status === "ended";
+
   return (
-    <div className="flex min-h-screen flex-col bg-neutral-950 text-white">
-      {/* Video area */}
-      <div className="relative flex-1">
-        <video
-          ref={remoteRef}
-          autoPlay
-          playsInline
-          className="h-full w-full bg-neutral-900 object-cover"
-        />
-        {status !== "connected" && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-neutral-900/80">
-            {status === "error" ? (
-              <p className="max-w-sm px-6 text-center text-sm text-red-300">
-                {errorMsg}
-              </p>
-            ) : (
-              <>
-                <Loader2 className="h-8 w-8 animate-spin text-[var(--primary)]" />
-                <p className="text-sm text-neutral-300">
-                  {status === "waiting"
-                    ? callRole === "provider"
-                      ? "Waiting for your patient to join…"
-                      : "Connecting you with your provider…"
-                    : "Starting your visit…"}
+    <div className="flex min-h-screen flex-col bg-neutral-950 lg:flex-row">
+      {/* Video column */}
+      <div className="relative flex min-h-[42vh] flex-1 flex-col lg:min-h-screen">
+        <div className="relative flex-1">
+          <video
+            ref={remoteRef}
+            autoPlay
+            playsInline
+            className="h-full w-full bg-neutral-900 object-cover"
+          />
+          {status !== "connected" && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-neutral-900/85 text-white">
+              {status === "error" ? (
+                <p className="max-w-sm px-6 text-center text-sm text-red-300">
+                  {errorMsg}
                 </p>
-              </>
+              ) : status === "ended" ? (
+                <>
+                  <PhoneOff className="h-8 w-8 text-neutral-400" />
+                  <p className="text-sm text-neutral-300">Call ended</p>
+                </>
+              ) : (
+                <>
+                  <Loader2 className="h-8 w-8 animate-spin text-[var(--primary)]" />
+                  <p className="text-sm text-neutral-300">
+                    {status === "waiting"
+                      ? callRole === "provider"
+                        ? "Waiting for your patient to join…"
+                        : "Connecting you with your provider…"
+                      : "Starting your visit…"}
+                  </p>
+                </>
+              )}
+            </div>
+          )}
+          {!callEnded && (
+            <video
+              ref={localRef}
+              autoPlay
+              playsInline
+              muted
+              className="absolute bottom-4 right-4 h-32 w-24 rounded-lg border border-white/20 object-cover shadow-lg sm:h-40 sm:w-32"
+            />
+          )}
+        </div>
+
+        {/* Controls */}
+        {!callEnded && (
+          <div className="flex items-center justify-center gap-3 bg-neutral-900 p-4">
+            <button
+              onClick={toggleMic}
+              className={`flex h-12 w-12 items-center justify-center rounded-full text-white ${micOn ? "bg-neutral-700" : "bg-red-600"}`}
+              aria-label="Toggle mic"
+            >
+              {micOn ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
+            </button>
+            <button
+              onClick={toggleCam}
+              className={`flex h-12 w-12 items-center justify-center rounded-full text-white ${camOn ? "bg-neutral-700" : "bg-red-600"}`}
+              aria-label="Toggle camera"
+            >
+              {camOn ? (
+                <VideoIcon className="h-5 w-5" />
+              ) : (
+                <VideoOff className="h-5 w-5" />
+              )}
+            </button>
+            {callRole === "client" && (
+              <Button variant="accent" onClick={leave} className="rounded-full">
+                <PhoneOff className="h-5 w-5" /> Leave
+              </Button>
+            )}
+            {callRole === "provider" && (
+              <Button variant="accent" onClick={hangUp} className="rounded-full">
+                <PhoneOff className="h-5 w-5" /> End call
+              </Button>
             )}
           </div>
         )}
-        {/* Local PIP */}
-        <video
-          ref={localRef}
-          autoPlay
-          playsInline
-          muted
-          className="absolute bottom-4 right-4 h-32 w-24 rounded-lg border border-white/20 object-cover shadow-lg sm:h-40 sm:w-32"
-        />
       </div>
 
-      {/* Controls */}
-      <div className="flex items-center justify-center gap-3 bg-neutral-900 p-4">
-        <button
-          onClick={toggleMic}
-          className={`flex h-12 w-12 items-center justify-center rounded-full ${micOn ? "bg-neutral-700" : "bg-red-600"}`}
-          aria-label="Toggle mic"
-        >
-          {micOn ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
-        </button>
-        <button
-          onClick={toggleCam}
-          className={`flex h-12 w-12 items-center justify-center rounded-full ${camOn ? "bg-neutral-700" : "bg-red-600"}`}
-          aria-label="Toggle camera"
-        >
-          {camOn ? (
-            <VideoIcon className="h-5 w-5" />
-          ) : (
-            <VideoOff className="h-5 w-5" />
-          )}
-        </button>
-        {callRole === "client" && (
-          <Button
-            variant="accent"
-            onClick={() => endCall()}
-            disabled={ending}
-            className="rounded-full"
-          >
-            <PhoneOff className="h-5 w-5" /> Leave
-          </Button>
-        )}
-      </div>
-
-      {/* Provider notes + complete */}
+      {/* Provider clinical panel */}
       {callRole === "provider" && (
-        <VisitNotesPanel
-          intake={intake}
-          onEnd={(notes) => endCall(notes)}
-          ending={ending}
-        />
+        <aside className="w-full border-t border-[var(--border)] lg:h-screen lg:w-[420px] lg:overflow-hidden lg:border-l lg:border-t-0">
+          <ProviderVisitPanel
+            appointment={appointment}
+            intake={intake}
+            callEnded={callEnded}
+            onEndCall={hangUp}
+            onCompleted={() => {
+              cleanup();
+              router.push("/provider/schedule");
+            }}
+          />
+        </aside>
       )}
     </div>
   );
