@@ -29,6 +29,21 @@ npm run dev                  # http://localhost:3000
   `SENDGRID_API_KEY` (or `RESEND_API_KEY`), `TWILIO_*`, `CRON_SECRET`
 - `PLATFORM_FEE_BPS` — platform's share in basis points (`5000` = 50/50 split)
 
+## Configuring API keys (easy path)
+
+Fill keys in one place and apply them with one command:
+
+```bash
+cp keys.example.txt keys.local.txt    # then paste your keys (git-ignored)
+node scripts/set-keys.mjs             # → writes .env.local for local dev
+node scripts/set-keys.mjs --prod      # → also pushes to App Hosting (secrets + yaml)
+git push                              # deploy the production config
+```
+
+Secret keys (Stripe, SendGrid/Resend, Twilio token, TURN credential) go into
+Cloud Secret Manager; non-secret values go into `apphosting.yaml`. Re-run any
+time you add more keys.
+
 ## Useful scripts
 
 ```bash

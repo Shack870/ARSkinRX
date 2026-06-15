@@ -1,0 +1,35 @@
+# ─────────────────────────────────────────────────────────────────────────
+# ARSkinRX API keys — fill this in, then run the helper (see bottom).
+#
+#   1) Copy this file:   cp keys.example.txt keys.local.txt
+#   2) Paste your keys below (leave blank any you don't have yet).
+#   3) Apply them:
+#        node scripts/set-keys.mjs            ← local dev (.env.local)
+#        node scripts/set-keys.mjs --prod     ← also push to the live site
+#   4) For production, deploy:   git push      (App Hosting rebuilds)
+#
+# keys.local.txt is git-ignored, so your real keys never get committed.
+# Only fill the ones you have; you can run this again any time you add more.
+# ─────────────────────────────────────────────────────────────────────────
+
+# ── Stripe (payments) ──  dashboard.stripe.com/apikeys  (use TEST keys first)
+STRIPE_SECRET_KEY=
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
+# Webhook signing secret (Stripe → Developers → Webhooks → your endpoint).
+STRIPE_WEBHOOK_SECRET=
+
+# ── Email ──  use ONE of these. SendGrid: app.sendgrid.com/settings/api_keys
+SENDGRID_API_KEY=
+RESEND_API_KEY=
+# The "From" address (must be on a verified domain).
+NOTIFY_FROM_EMAIL=ARSkinRX <care@arskinrx.com>
+
+# ── SMS (Twilio) ──  console.twilio.com  (number must be A2P 10DLC-registered)
+TWILIO_ACCOUNT_SID=
+TWILIO_AUTH_TOKEN=
+TWILIO_FROM_NUMBER=
+
+# ── Video relay (TURN) ──  e.g. Twilio Network Traversal, Metered, or coturn
+TURN_URLS=
+TURN_USERNAME=
+TURN_CREDENTIAL=
