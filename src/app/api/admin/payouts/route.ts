@@ -142,7 +142,9 @@ export async function POST(req: Request) {
         subject: "Your ARSkinRX payout has been sent",
         html: `<p>${msg}</p>${note ? `<p>Note: ${note}</p>` : ""}`,
       });
-    if (phone) await sendSms({ to: phone, body: msg });
+    if (phone && u.get("smsOptIn") === true) {
+      await sendSms({ to: phone, body: msg });
+    }
   } catch {
     // non-critical
   }

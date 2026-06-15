@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/lib/auth-context";
 import { authedFetch } from "@/lib/api-client";
 
@@ -31,6 +32,7 @@ function RegisterInner() {
     password: "",
     phone: "",
   });
+  const [smsOptIn, setSmsOptIn] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(false);
 
@@ -53,6 +55,7 @@ function RegisterInner() {
         body: JSON.stringify({
           displayName: form.displayName,
           phone: form.phone,
+          smsOptIn,
         }),
       });
       if (!res.ok) throw new Error("Could not finish creating your account.");
@@ -123,6 +126,34 @@ function RegisterInner() {
                 autoComplete="new-password"
               />
             </div>
+            <label className="flex cursor-pointer items-start gap-3 rounded-[var(--radius-md)] border border-[var(--border)] p-3">
+              <span className="mt-0.5">
+                <Checkbox checked={smsOptIn} onCheckedChange={setSmsOptIn} />
+              </span>
+              <span className="text-xs leading-relaxed text-[var(--muted-foreground)]">
+                Text me appointment updates and reminders. By checking this box,
+                I agree to receive automated SMS messages from ARSkinRX at the
+                number provided. Consent is not a condition of purchase. Message
+                frequency varies; message &amp; data rates may apply. Reply STOP
+                to unsubscribe or HELP for help. See our{" "}
+                <Link
+                  href="/legal/privacy"
+                  target="_blank"
+                  className="text-[var(--primary)] underline"
+                >
+                  Privacy Policy
+                </Link>{" "}
+                and{" "}
+                <Link
+                  href="/legal/terms"
+                  target="_blank"
+                  className="text-[var(--primary)] underline"
+                >
+                  Terms
+                </Link>
+                .
+              </span>
+            </label>
             {error && (
               <p className="rounded-[var(--radius-md)] bg-[var(--accent-soft)] px-3 py-2 text-sm text-[var(--accent)]">
                 {error}

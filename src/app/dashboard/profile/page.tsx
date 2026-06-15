@@ -27,6 +27,7 @@ export default function ClientProfilePage() {
   const [prefs, setPrefs] = React.useState<NotificationPrefs>(
     DEFAULT_NOTIFICATION_PREFS,
   );
+  const [smsOptIn, setSmsOptIn] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const hydrated = React.useRef(false);
 
@@ -35,6 +36,7 @@ export default function ClientProfilePage() {
     setDisplayName(profile.displayName ?? "");
     setPhone(profile.phone ?? "");
     setPrefs(resolvePrefs(profile.notificationPrefs));
+    setSmsOptIn(profile.smsOptIn === true);
     hydrated.current = true;
   }, [profile]);
 
@@ -56,10 +58,14 @@ export default function ClientProfilePage() {
     if (!user) return;
     setSaving(true);
     try {
+      const wasOptedIn = profile?.smsOptIn === true;
       await updateDoc(doc(db, COLLECTIONS.users, user.uid), {
         displayName,
         phone,
         notificationPrefs: prefs,
+        smsOptIn,
+        // Record consent time when newly opting in.
+        ...(smsOptIn && !wasOptedIn ? { smsOptInAt: Date.now() } : {}),
         updatedAt: Date.now(),
       });
       toast.success("Profile saved");
@@ -136,6 +142,22 @@ export default function ClientProfilePage() {
             </li>
           ))}
         </ul>
+      </Card>
+
+      <Card className="p-6">
+        <h2 className="mb-2 font-semibold">Text messages (SMS)</h2>
+        <label className="flex cursor-pointer items-start gap-3 rounded-[var(--radius-md)] border border-[var(--border)] p-3 hover:bg-[var(--muted)]">
+          <span className="mt-0.5">
+            <Checkbox checked={smsOptIn} onCheckedChange={setSmsOptIn} />
+          </span>
+          <span className="text-xs leading-relaxed text-[var(--muted-foreground)]">
+            Text me appointment updates and reminders. By enabling this, I agree
+            to receive automated SMS messages from ARSkinRX at my number on file.
+            Consent is not a condition of purchase. Message frequency varies;
+            message &amp; data rates may apply. Reply STOP to unsubscribe or HELP
+            for help.
+          </span>
+        </label>
       </Card>
 
       <div className="flex items-center gap-3">

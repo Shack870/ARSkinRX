@@ -77,7 +77,9 @@ export async function POST(
     const msg = `ARSkinRX: ${who} cancelled the ${service?.name ?? "visit"} on ${when}.`;
     if (email)
       await sendEmail({ to: email, subject: "A visit was cancelled", html: `<p>${msg}</p>` });
-    if (phone) await sendSms({ to: phone, body: msg });
+    if (phone && other.get("smsOptIn") === true) {
+      await sendSms({ to: phone, body: `${msg} Reply STOP to opt out.` });
+    }
   } catch {
     // non-critical
   }

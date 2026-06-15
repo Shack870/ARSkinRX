@@ -141,12 +141,12 @@ export async function runSweep(): Promise<SweepResult> {
         await fireMilestone("dayOf", prefs.reminderDayOf);
       }
 
-      // Imminent SMS nudge (~15 min before), independent of email prefs.
+      // Imminent SMS nudge (~15 min before). Requires SMS opt-in.
       if (until <= 15 * 60 * 1000 && !a.reminderSentAt) {
-        if (phone) {
+        if (phone && clientSnap.get("smsOptIn") === true) {
           await sendSms({
             to: phone,
-            body: `ARSkinRX: Your ${serviceName} starts at ${formatTime(a.start)}. Join from your dashboard.`,
+            body: `ARSkinRX: Your ${serviceName} starts at ${formatTime(a.start)}. Join from your dashboard. Reply STOP to opt out.`,
           });
         }
         updates.reminderSentAt = now;

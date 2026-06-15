@@ -21,6 +21,7 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
   const displayName = String(body.displayName ?? "").trim();
   const phone = String(body.phone ?? "").trim();
+  const smsOptIn = body.smsOptIn === true;
 
   const userRef = adminDb.collection(COLLECTIONS.users).doc(user.uid);
   const existing = await userRef.get();
@@ -39,6 +40,8 @@ export async function POST(req: Request) {
       phone,
       role: "client",
       state: "AR",
+      smsOptIn,
+      smsOptInAt: smsOptIn ? now : null,
       createdAt: existing.exists ? existing.get("createdAt") ?? now : now,
       updatedAt: now,
     },

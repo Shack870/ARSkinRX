@@ -58,6 +58,10 @@ export interface UserProfile {
   /** Arkansas only for now; kept for future multi-state expansion. */
   state: string;
   notificationPrefs?: NotificationPrefs;
+  /** Explicit consent to receive SMS (TCPA). */
+  smsOptIn?: boolean;
+  /** When SMS consent was given (for compliance records). */
+  smsOptInAt?: number;
   createdAt: number;
   updatedAt: number;
 }

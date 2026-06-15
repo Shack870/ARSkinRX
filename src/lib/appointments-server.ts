@@ -86,10 +86,10 @@ export async function confirmAppointmentBooked(
         }),
       });
     }
-    if (prefs.receipt && phone) {
+    if (prefs.receipt && phone && clientSnap.get("smsOptIn") === true) {
       await sendSms({
         to: phone,
-        body: `ARSkinRX: Your ${service?.name ?? "visit"} is booked for ${whenText}. Join from your dashboard.`,
+        body: `ARSkinRX: Your ${service?.name ?? "visit"} is booked for ${whenText}. Join from your dashboard. Reply STOP to opt out.`,
       });
     }
   } catch {

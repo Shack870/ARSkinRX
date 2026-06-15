@@ -45,6 +45,17 @@ export default function PrivacyPage() {
           payment, operate the service, or as required by law.
         </p>
       </LegalSection>
+      <LegalSection heading="SMS / text messaging">
+        <p>
+          If you opt in, we send appointment-related text messages (confirmations
+          and reminders) to the number you provide. Consent is not a condition of
+          any purchase. Message frequency varies, and message and data rates may
+          apply. Reply <strong>STOP</strong> at any time to unsubscribe or{" "}
+          <strong>HELP</strong> for help. You can also turn texts off anytime in
+          your profile settings. We do not share your mobile number with third
+          parties for marketing.
+        </p>
+      </LegalSection>
     </LegalShell>
   );
 }
