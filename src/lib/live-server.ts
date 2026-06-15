@@ -14,7 +14,7 @@ export const LIVE_FRESH_MS = 30 * 60 * 1000;
 /** How long a paid request keeps searching before it's considered expired. */
 export const LIVE_SEARCH_MS = 120_000;
 /** Default premium price for a No-Wait Live (no-appointment) visit. */
-export const DEFAULT_LIVE_PRICE_CENTS = 7500;
+export const DEFAULT_LIVE_PRICE_CENTS = 9900;
 
 /** Admin-configurable flat price for real-time visits (settings/live). */
 export async function getLivePriceCents(): Promise<number> {

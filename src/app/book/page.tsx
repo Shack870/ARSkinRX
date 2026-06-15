@@ -107,7 +107,7 @@ function BookInner() {
   const [photoPaths, setPhotoPaths] = React.useState<string[]>([]);
   const [uploadingPhoto, setUploadingPhoto] = React.useState(false);
   const [liveAvailable, setLiveAvailable] = React.useState(false);
-  const [livePriceCents, setLivePriceCents] = React.useState(7500);
+  const [livePriceCents, setLivePriceCents] = React.useState(9900);
   const [startingLive, setStartingLive] = React.useState(false);
 
   const service = serviceId ? getService(serviceId) : null;

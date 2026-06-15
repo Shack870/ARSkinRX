@@ -41,7 +41,7 @@ export default function AdminServicesPage() {
     authedFetch("/api/admin/settings")
       .then((r) => r.json())
       .then((d) =>
-        setLivePrice(((d.realtimePriceCents ?? 7500) / 100).toFixed(0)),
+        setLivePrice(((d.realtimePriceCents ?? 9900) / 100).toFixed(0)),
       )
       .catch(() => {});
   }, []);
