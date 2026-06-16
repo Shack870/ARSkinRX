@@ -87,3 +87,12 @@ env:
   #   availability: [RUNTIME]
   # - variable: CRON_SECRET
   #   secret: cron-secret
+
+  # >>> set-keys managed (do not edit by hand) >>>
+  - variable: SENDGRID_API_KEY
+    secret: SENDGRID_API_KEY
+    availability: [RUNTIME]
+  - variable: NOTIFY_FROM_EMAIL
+    value: "ARSkinRX <care@arskinrx.com>"
+    availability: [RUNTIME]
+  # <<< set-keys managed <<<
