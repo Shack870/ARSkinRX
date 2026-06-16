@@ -111,3 +111,27 @@ env:
     value: "ARSkinRX <care@arskinrx.com>"
     availability: [RUNTIME]
   # <<< set-keys managed <<<
+
+  # >>> set-keys managed (do not edit by hand) >>>
+  - variable: STRIPE_SECRET_KEY
+    secret: STRIPE_SECRET_KEY
+    availability: [RUNTIME]
+  - variable: NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+    value: "pk_test_51TilKd0ZGlbnV9PxU5merpCulNTvxai6RNCY3YAIW1YKQLrIsDltliDoXV89kGOvJs6TZGNKlMefTSYqbKT0LF8200rHgSQBDs"
+    availability: [BUILD, RUNTIME]
+  - variable: SENDGRID_API_KEY
+    secret: SENDGRID_API_KEY
+    availability: [RUNTIME]
+  - variable: NOTIFY_FROM_EMAIL
+    value: "ARSkinRX <care@arskinrx.com>"
+    availability: [RUNTIME]
+  - variable: TURN_URLS
+    value: "turn:free.expressturn.com:3478,turn:free.expressturn.com:3478?transport=tcp"
+    availability: [RUNTIME]
+  - variable: TURN_USERNAME
+    secret: TURN_USERNAME
+    availability: [RUNTIME]
+  - variable: TURN_CREDENTIAL
+    secret: TURN_CREDENTIAL
+    availability: [RUNTIME]
+  # <<< set-keys managed <<<
