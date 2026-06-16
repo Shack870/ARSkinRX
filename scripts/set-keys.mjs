@@ -109,8 +109,11 @@ let yaml = readFileSync(yamlPath, "utf8");
 const START = "  # >>> set-keys managed (do not edit by hand) >>>";
 const END = "  # <<< set-keys managed <<<";
 const block = `${START}\n${yamlEntries.join("\n")}\n${END}`;
-const re = new RegExp(`${START}[\\s\\S]*?${END}`);
-yaml = re.test(yaml) ? yaml.replace(re, block) : `${yaml.trimEnd()}\n\n${block}\n`;
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+// Remove ALL existing managed blocks (avoids duplicate env vars), then append one.
+const re = new RegExp(`\\n*${escapeRe(START)}[\\s\\S]*?${escapeRe(END)}`, "g");
+yaml = yaml.replace(re, "").trimEnd();
+yaml = `${yaml}\n\n${block}\n`;
 writeFileSync(yamlPath, yaml);
 console.log("✓ Updated apphosting.yaml");
 
