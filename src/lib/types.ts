@@ -62,6 +62,8 @@ export interface UserProfile {
   smsOptIn?: boolean;
   /** When SMS consent was given (for compliance records). */
   smsOptInAt?: number;
+  /** When the patient accepted Terms/Privacy/Telehealth Consent at signup. */
+  consentAcceptedAt?: number | null;
   createdAt: number;
   updatedAt: number;
 }

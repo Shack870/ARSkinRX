@@ -22,6 +22,7 @@ export async function POST(req: Request) {
   const displayName = String(body.displayName ?? "").trim();
   const phone = String(body.phone ?? "").trim();
   const smsOptIn = body.smsOptIn === true;
+  const consent = body.consent === true;
 
   const userRef = adminDb.collection(COLLECTIONS.users).doc(user.uid);
   const existing = await userRef.get();
@@ -42,6 +43,13 @@ export async function POST(req: Request) {
       state: "AR",
       smsOptIn,
       smsOptInAt: smsOptIn ? now : null,
+      consentAcceptedAt: consent
+        ? existing.exists
+          ? existing.get("consentAcceptedAt") ?? now
+          : now
+        : existing.exists
+          ? existing.get("consentAcceptedAt") ?? null
+          : null,
       createdAt: existing.exists ? existing.get("createdAt") ?? now : now,
       updatedAt: now,
     },

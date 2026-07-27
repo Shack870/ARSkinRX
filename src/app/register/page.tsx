@@ -33,6 +33,7 @@ function RegisterInner() {
     phone: "",
   });
   const [smsOptIn, setSmsOptIn] = React.useState(false);
+  const [agreed, setAgreed] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(false);
 
@@ -47,6 +48,10 @@ function RegisterInner() {
     if (!/^\S+@\S+\.\S+$/.test(form.email)) return setError("Enter a valid email.");
     if (form.password.length < 8)
       return setError("Password must be at least 8 characters.");
+    if (!agreed)
+      return setError(
+        "Please review and agree to the Terms, Privacy Policy, and Telehealth Consent to continue.",
+      );
     setLoading(true);
     try {
       await signUp(form.email, form.password, form.displayName);
@@ -56,6 +61,7 @@ function RegisterInner() {
           displayName: form.displayName,
           phone: form.phone,
           smsOptIn,
+          consent: agreed,
         }),
       });
       if (!res.ok) throw new Error("Could not finish creating your account.");
@@ -152,6 +158,39 @@ function RegisterInner() {
                   Terms
                 </Link>
                 .
+              </span>
+            </label>
+            <label className="flex cursor-pointer items-start gap-3 rounded-[var(--radius-md)] border border-[var(--border)] p-3">
+              <span className="mt-0.5">
+                <Checkbox checked={agreed} onCheckedChange={setAgreed} />
+              </span>
+              <span className="text-xs leading-relaxed text-[var(--muted-foreground)]">
+                I have read and agree to the{" "}
+                <Link
+                  href="/legal/terms"
+                  target="_blank"
+                  className="text-[var(--primary)] underline"
+                >
+                  Terms of Service
+                </Link>
+                ,{" "}
+                <Link
+                  href="/legal/privacy"
+                  target="_blank"
+                  className="text-[var(--primary)] underline"
+                >
+                  Privacy Policy
+                </Link>
+                , and{" "}
+                <Link
+                  href="/legal/consent"
+                  target="_blank"
+                  className="text-[var(--primary)] underline"
+                >
+                  Telehealth Informed Consent
+                </Link>
+                . I understand ARSkinRX provides telehealth services to Arkansas
+                residents and is not for emergencies.
               </span>
             </label>
             {error && (
