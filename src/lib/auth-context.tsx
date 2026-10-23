@@ -22,6 +22,8 @@ interface AuthContextValue {
   user: FirebaseUser | null;
   profile: UserProfile | null;
   role: Role | null;
+  /** True for role === 'admin' or the additive `admin: true` claim. */
+  isAdmin: boolean;
   loading: boolean;
   signUp: (email: string, password: string, displayName: string) => Promise<FirebaseUser>;
   signIn: (email: string, password: string) => Promise<FirebaseUser>;
@@ -35,6 +37,16 @@ interface AuthContextValue {
 }
 
 const AuthContext = React.createContext<AuthContextValue | undefined>(undefined);
+
+interface ClaimState {
+  role: Role | null;
+  isAdmin: boolean;
+}
+
+function readClaims(claims: Record<string, unknown>): ClaimState {
+  const role = (claims.role as Role) ?? null;
+  return { role, isAdmin: role === "admin" || claims.admin === true };
+}
 
 /** Sync the Firebase ID token into an HTTP-only session cookie for SSR. */
 async function postSession(token: string | null) {
@@ -56,7 +68,10 @@ async function postSession(token: string | null) {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<FirebaseUser | null>(null);
   const [profile, setProfile] = React.useState<UserProfile | null>(null);
-  const [role, setRole] = React.useState<Role | null>(null);
+  const [claims, setClaims] = React.useState<ClaimState>({
+    role: null,
+    isAdmin: false,
+  });
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
@@ -64,9 +79,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(u);
       if (u) {
         const tokenResult = await u.getIdTokenResult();
-        setRole((tokenResult.claims.role as Role) ?? null);
+        setClaims(readClaims(tokenResult.claims));
       } else {
-        setRole(null);
+        setClaims({ role: null, isAdmin: false });
         setProfile(null);
       }
       setLoading(false);
@@ -118,7 +133,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshClaims = React.useCallback(async () => {
     if (!auth.currentUser) return;
     const tokenResult = await auth.currentUser.getIdTokenResult(true);
-    setRole((tokenResult.claims.role as Role) ?? null);
+    setClaims(readClaims(tokenResult.claims));
   }, []);
 
   const resendVerification = React.useCallback(async () => {
@@ -128,7 +143,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithToken = React.useCallback(async (token: string) => {
     const cred = await signInWithCustomToken(auth, token);
     const tokenResult = await cred.user.getIdTokenResult(true);
-    setRole((tokenResult.claims.role as Role) ?? null);
+    setClaims(readClaims(tokenResult.claims));
     return cred.user;
   }, []);
 
@@ -145,7 +160,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value: AuthContextValue = {
     user,
     profile,
-    role,
+    role: claims.role,
+    isAdmin: claims.isAdmin,
     loading,
     signUp,
     signIn,

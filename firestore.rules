@@ -12,8 +12,10 @@ service cloud.firestore {
   function role() {
     return request.auth.token.role;
   }
+  // Admin is either the dedicated admin role or the additive `admin: true`
+  // claim (lets an owner keep role == 'provider' and still administer).
   function isAdmin() {
-    return isSignedIn() && role() == 'admin';
+    return isSignedIn() && (role() == 'admin' || request.auth.token.admin == true);
   }
   function isProvider() {
     return isSignedIn() && role() == 'provider';

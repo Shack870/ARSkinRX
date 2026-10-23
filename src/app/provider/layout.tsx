@@ -4,6 +4,7 @@ import {
   CalendarClock,
   CalendarRange,
   LayoutDashboard,
+  ShieldCheck,
   UserRound,
   Wallet,
 } from "lucide-react";
@@ -11,6 +12,7 @@ import { DashboardShell, type NavItem } from "@/components/dashboard/dashboard-s
 import { IncomingLive } from "@/components/live/incoming-live";
 import { LiveOffers } from "@/components/live/live-offers";
 import { PresenceProvider } from "@/components/live/presence-context";
+import { useAuth } from "@/lib/auth-context";
 
 const NAV: NavItem[] = [
   { label: "Overview", href: "/provider", icon: LayoutDashboard },
@@ -20,13 +22,23 @@ const NAV: NavItem[] = [
   { label: "Profile", href: "/provider/profile", icon: UserRound },
 ];
 
+const ADMIN_LINK: NavItem[] = [
+  { label: "Admin", href: "/admin", icon: ShieldCheck },
+];
+
 export default function ProviderLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const { isAdmin } = useAuth();
   return (
-    <DashboardShell role="provider" nav={NAV} brandLabel="Nurse Practitioner">
+    <DashboardShell
+      role="provider"
+      nav={NAV}
+      switchNav={isAdmin ? ADMIN_LINK : undefined}
+      brandLabel="Nurse Practitioner"
+    >
       <PresenceProvider>
         <LiveOffers />
         <IncomingLive />

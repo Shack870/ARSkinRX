@@ -22,7 +22,7 @@ export async function GET(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
   const appt = apptSnap.data()!;
-  if (appt.providerId !== user.uid && user.role !== "admin") {
+  if (appt.providerId !== user.uid && !user.isAdmin) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

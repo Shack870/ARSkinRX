@@ -32,7 +32,7 @@ export async function POST(
   const a = snap.data()!;
   const isClient = a.clientId === user.uid;
   const isProvider = a.providerId === user.uid;
-  const isAdmin = user.role === "admin";
+  const isAdmin = user.isAdmin;
   if (!isClient && !isProvider && !isAdmin) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }

@@ -105,8 +105,13 @@ export async function POST(req: Request) {
 
   await batch.commit();
 
-  // Grant the provider role via custom claims.
-  await adminAuth.setCustomUserClaims(uid, { role: "provider" });
+  // Grant the provider role via custom claims, preserving any additive
+  // `admin: true` claim the account may already carry.
+  const existingClaims = (await adminAuth.getUser(uid)).customClaims ?? {};
+  await adminAuth.setCustomUserClaims(uid, {
+    ...existingClaims,
+    role: "provider",
+  });
 
   return NextResponse.json({ ok: true, status: "pending" });
 }

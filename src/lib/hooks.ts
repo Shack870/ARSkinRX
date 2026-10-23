@@ -16,6 +16,7 @@ import type {
   IntakeResponse,
   LiveRequest,
   PaymentRecord,
+  Payout,
   ProviderAvailability,
   ProviderProfile,
   UserProfile,
@@ -101,12 +102,10 @@ export function useUserProfile(uid: string | undefined) {
 
 export function useIntake(intakeId: string | undefined) {
   const [intake, setIntake] = React.useState<IntakeResponse | null>(null);
-  const [loading, setLoading] = React.useState(true);
+  // Nothing to load when there's no intake id.
+  const [loading, setLoading] = React.useState(Boolean(intakeId));
   React.useEffect(() => {
-    if (!intakeId) {
-      setLoading(false);
-      return;
-    }
+    if (!intakeId) return;
     return onSnapshot(
       doc(db, COLLECTIONS.intakeResponses, intakeId),
       (snap) => {
@@ -159,6 +158,32 @@ export function useClientPayments(uid: string | undefined) {
     );
   }, [uid]);
   return { payments, loading };
+}
+
+/** Payouts issued to a provider, newest first. */
+export function useProviderPayouts(uid: string | undefined) {
+  const [payouts, setPayouts] = React.useState<Payout[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  React.useEffect(() => {
+    if (!uid) return;
+    const q = query(
+      collection(db, COLLECTIONS.payouts),
+      where("providerId", "==", uid),
+    );
+    return onSnapshot(
+      q,
+      (snap) => {
+        setPayouts(
+          snap.docs
+            .map((d) => ({ ...(d.data() as Payout), id: d.id }))
+            .sort((a, b) => b.createdAt - a.createdAt),
+        );
+        setLoading(false);
+      },
+      () => setLoading(false),
+    );
+  }, [uid]);
+  return { payouts, loading };
 }
 
 export function useAppointment(id: string | undefined) {

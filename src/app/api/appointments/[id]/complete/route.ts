@@ -26,7 +26,7 @@ export async function POST(
   if (!snap.exists) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const a = snap.data()!;
-  if (a.providerId !== user.uid && user.role !== "admin") {
+  if (a.providerId !== user.uid && !user.isAdmin) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

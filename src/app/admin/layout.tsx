@@ -12,6 +12,8 @@ import {
   Wallet,
 } from "lucide-react";
 import { DashboardShell, type NavItem } from "@/components/dashboard/dashboard-shell";
+import { useAuth } from "@/lib/auth-context";
+import { useProviderProfile } from "@/lib/hooks";
 
 const NAV: NavItem[] = [
   { label: "Overview", href: "/admin", icon: LayoutDashboard },
@@ -25,13 +27,25 @@ const NAV: NavItem[] = [
   { label: "Audit log", href: "/admin/audit", icon: ScrollText },
 ];
 
+const PROVIDER_LINK: NavItem[] = [
+  { label: "My provider dashboard", href: "/provider", icon: Stethoscope },
+];
+
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const { user, role } = useAuth();
+  const { profile: providerProfile } = useProviderProfile(user?.uid);
+  const isProvider = role === "provider" || providerProfile !== null;
   return (
-    <DashboardShell role="admin" nav={NAV} brandLabel="Admin">
+    <DashboardShell
+      role="admin"
+      nav={NAV}
+      switchNav={isProvider ? PROVIDER_LINK : undefined}
+      brandLabel="Admin"
+    >
       {children}
     </DashboardShell>
   );

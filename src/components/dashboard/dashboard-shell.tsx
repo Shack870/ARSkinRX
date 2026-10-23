@@ -17,36 +17,45 @@ export interface NavItem {
 export function DashboardShell({
   role,
   nav,
+  switchNav,
   brandLabel,
   children,
 }: {
   role: Role;
   nav: NavItem[];
+  /** Cross-area links (e.g. "Admin" from the provider shell) for dual-role users. */
+  switchNav?: NavItem[];
   brandLabel: string;
   children: React.ReactNode;
 }) {
-  const { user, profile, role: userRole, loading, signOut } = useAuth();
+  const { user, profile, role: userRole, isAdmin, loading, signOut } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const currentLabel = nav.find((n) => n.href === pathname)?.label;
+  // The admin area accepts the additive `admin` claim so an owner who is also
+  // a provider (role === 'provider') can reach it from the same login.
+  const allowed = userRole === role || (role === "admin" && isAdmin);
 
-  // Close the mobile drawer whenever the route changes.
-  React.useEffect(() => {
+  // Close the mobile drawer whenever the route changes (derived during
+  // render per React's "adjusting state on prop change" pattern).
+  const [drawerPath, setDrawerPath] = React.useState(pathname);
+  if (pathname !== drawerPath) {
+    setDrawerPath(pathname);
     setMobileOpen(false);
-  }, [pathname]);
+  }
 
   React.useEffect(() => {
     if (loading) return;
     if (!user) {
       router.replace(`/login?next=${encodeURIComponent(pathname)}`);
-    } else if (userRole && userRole !== role) {
+    } else if (userRole && !allowed) {
       // Logged in but wrong role for this area.
       router.replace("/");
     }
-  }, [loading, user, userRole, role, router, pathname]);
+  }, [loading, user, userRole, allowed, router, pathname]);
 
-  if (loading || !user || (userRole && userRole !== role)) {
+  if (loading || !user || (userRole && !allowed)) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-[var(--primary)]" />
@@ -73,6 +82,16 @@ export function DashboardShell({
           {nav.map((item) => (
             <NavLink key={item.href} item={item} active={pathname === item.href} />
           ))}
+          {switchNav && switchNav.length > 0 && (
+            <>
+              <p className="px-3 pb-2 pt-5 text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
+                Switch to
+              </p>
+              {switchNav.map((item) => (
+                <NavLink key={item.href} item={item} active={false} />
+              ))}
+            </>
+          )}
         </nav>
         <div className="border-t border-[var(--border)] p-3">
           <div className="px-3 py-2 text-sm">
@@ -147,6 +166,16 @@ export function DashboardShell({
                   large
                 />
               ))}
+              {switchNav && switchNav.length > 0 && (
+                <>
+                  <p className="px-3 pb-2 pt-5 text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
+                    Switch to
+                  </p>
+                  {switchNav.map((item) => (
+                    <NavLink key={item.href} item={item} active={false} large />
+                  ))}
+                </>
+              )}
             </nav>
             <div className="border-t border-[var(--border)] p-3">
               <div className="px-3 py-2 text-sm">

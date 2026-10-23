@@ -55,6 +55,11 @@ export interface UserProfile {
   displayName: string;
   phone?: string;
   role: Role;
+  /**
+   * Mirror of the additive `admin: true` custom claim. Lets a provider (e.g.
+   * the clinic owner) also administer without giving up their provider role.
+   */
+  isAdmin?: boolean;
   /** Arkansas only for now; kept for future multi-state expansion. */
   state: string;
   notificationPrefs?: NotificationPrefs;
