@@ -93,8 +93,11 @@ env:
     secret: STRIPE_SECRET_KEY
     availability: [RUNTIME]
   - variable: NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
-    value: "pk_test_51TilKd0ZGlbnV9PxU5merpCulNTvxai6RNCY3YAIW1YKQLrIsDltliDoXV89kGOvJs6TZGNKlMefTSYqbKT0LF8200rHgSQBDs"
+    value: "pk_live_51TilKR14Yem9WU2PCMZcXlBVj4yXzEwa5XJR65x19khSvAXw0hV6cpNMCrooXpVbZGHfoQeQJOrTC9jqrVOo6C9100gVvdR5GL"
     availability: [BUILD, RUNTIME]
+  - variable: STRIPE_WEBHOOK_SECRET
+    secret: STRIPE_WEBHOOK_SECRET
+    availability: [RUNTIME]
   - variable: SENDGRID_API_KEY
     secret: SENDGRID_API_KEY
     availability: [RUNTIME]
