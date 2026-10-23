@@ -3,6 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import {
+  Check,
   Clock,
   CreditCard,
   Stethoscope,
@@ -13,9 +14,13 @@ import {
 } from "lucide-react";
 import { authedFetch } from "@/lib/api-client";
 import { formatCurrency } from "@/lib/utils";
+import { SERVICE_MAP } from "@/lib/services";
 import { useToast } from "@/components/ui/toast";
+import { useConfirm } from "@/components/ui/confirm";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import type { ServiceType } from "@/lib/types";
 
 interface Overview {
   providers: number;
@@ -92,20 +97,19 @@ export default function AdminOverview() {
             </Card>
           )}
           {data.pendingProviders > 0 && (
-            <Card className="border-amber-200 bg-amber-50 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <Clock className="h-5 w-5 text-amber-600" />
-                  <p className="text-sm font-medium text-amber-800">
-                    {data.pendingProviders} provider
-                    {data.pendingProviders > 1 ? "s" : ""} awaiting approval
-                  </p>
-                </div>
-                <Link href="/admin/providers">
-                  <Button size="sm">Review</Button>
-                </Link>
-              </div>
-            </Card>
+            <PendingApplications
+              onChange={(delta) =>
+                setData((d) =>
+                  d
+                    ? {
+                        ...d,
+                        pendingProviders: Math.max(0, d.pendingProviders + delta),
+                        providers: d.providers + (delta < 0 ? 1 : 0),
+                      }
+                    : d,
+                )
+              }
+            />
           )}
           {data.owedToProvidersCents > 0 && (
             <Card className="border-[var(--primary)] bg-[var(--primary-soft)] p-4">
@@ -152,6 +156,111 @@ export default function AdminOverview() {
         </>
       )}
     </div>
+  );
+}
+
+interface PendingRow {
+  uid: string;
+  displayName: string;
+  email: string;
+  licenseNumber: string;
+  conditions: ServiceType[];
+  status: string;
+  createdAt: number;
+}
+
+/** Nurse applications awaiting approval, approvable right from the overview. */
+function PendingApplications({ onChange }: { onChange: (delta: number) => void }) {
+  const toast = useToast();
+  const confirm = useConfirm();
+  const [rows, setRows] = React.useState<PendingRow[] | null>(null);
+  const [busy, setBusy] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    authedFetch("/api/admin/providers")
+      .then((r) => r.json())
+      .then((d) =>
+        setRows(
+          (d.providers ?? []).filter((p: PendingRow) => p.status === "pending"),
+        ),
+      )
+      .catch(() => setRows([]));
+  }, []);
+
+  async function approve(p: PendingRow) {
+    const ok = await confirm({
+      title: `Approve ${p.displayName}?`,
+      message: "They'll appear to patients immediately and can start taking visits.",
+      confirmLabel: "Approve",
+    });
+    if (!ok) return;
+    setBusy(p.uid);
+    try {
+      const res = await authedFetch(`/api/admin/providers/${p.uid}`, {
+        method: "PATCH",
+        body: JSON.stringify({ action: "approve" }),
+      });
+      if (!res.ok) throw new Error();
+      setRows((r) => (r ?? []).filter((x) => x.uid !== p.uid));
+      onChange(-1);
+      toast.success("Nurse approved", `${p.displayName} is now live for bookings.`);
+    } catch {
+      toast.error("Couldn't approve", "Please try again.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  if (rows && rows.length === 0) return null;
+
+  return (
+    <Card className="border-amber-200 bg-amber-50 p-4">
+      <div className="mb-3 flex items-center gap-3">
+        <Clock className="h-5 w-5 text-amber-600" />
+        <p className="text-sm font-medium text-amber-800">
+          {rows ? `${rows.length} nurse application${rows.length > 1 ? "s" : ""} awaiting approval` : "Loading applications…"}
+        </p>
+      </div>
+      {rows && (
+        <ul className="divide-y divide-amber-200/70 rounded-[var(--radius-md)] border border-amber-200 bg-white">
+          {rows.map((p) => (
+            <li key={p.uid} className="flex flex-wrap items-center justify-between gap-3 p-3">
+              <div className="min-w-0">
+                <Link
+                  href={`/admin/providers/${p.uid}`}
+                  className="font-medium hover:text-[var(--primary)]"
+                >
+                  {p.displayName}
+                </Link>
+                <p className="truncate text-xs text-[var(--muted-foreground)]">
+                  {p.email} · License {p.licenseNumber || "—"} · Applied{" "}
+                  {new Date(p.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                </p>
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {p.conditions.slice(0, 4).map((c) => (
+                    <Badge key={c}>{SERVICE_MAP[c]?.name ?? c}</Badge>
+                  ))}
+                  {p.conditions.length > 4 && (
+                    <Badge>+{p.conditions.length - 4} more</Badge>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Link href={`/admin/providers/${p.uid}`}>
+                  <Button size="sm" variant="outline">
+                    View
+                  </Button>
+                </Link>
+                <Button size="sm" onClick={() => approve(p)} disabled={busy === p.uid}>
+                  {busy === p.uid ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                  Approve
+                </Button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
   );
 }
 

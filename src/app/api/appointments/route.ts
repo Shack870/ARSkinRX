@@ -7,6 +7,10 @@ import { getService } from "@/lib/services";
 import { getEffectiveService } from "@/lib/services-server";
 import { platformFeeCents } from "@/lib/stripe";
 import { rateLimit } from "@/lib/rate-limit";
+import {
+  createPendingAppointment,
+  SlotTakenError,
+} from "@/lib/appointments-server";
 import type { ServiceType } from "@/lib/types";
 
 const HOLD_MINUTES = 15;
@@ -67,62 +71,25 @@ export async function POST(req: Request) {
   // Pricing is controlled centrally by admin (effective service price).
   const priceCents = effective?.defaultPriceCents ?? service.defaultPriceCents;
 
-  const now = Date.now();
-  const holdExpiresAt = now + HOLD_MINUTES * 60 * 1000;
-  const apptRef = adminDb.collection(COLLECTIONS.appointments).doc();
-  const intakeRef = adminDb.collection(COLLECTIONS.intakeResponses).doc();
+  const holdExpiresAt = Date.now() + HOLD_MINUTES * 60 * 1000;
 
-  // Transaction: re-check overlap right before writing.
+  let appointmentId: string;
   try {
-    await adminDb.runTransaction(async (tx) => {
-      const conflictSnap = await tx.get(
-        adminDb
-          .collection(COLLECTIONS.appointments)
-          .where("providerId", "==", providerId)
-          .where("start", "==", start),
-      );
-      const blocking = conflictSnap.docs.some((d) => {
-        const s = d.get("status");
-        if (["cancelled", "no_show"].includes(s)) return false;
-        if (s === "pending_payment" && (d.get("holdExpiresAt") ?? 0) < now)
-          return false;
-        return true;
-      });
-      if (blocking) throw new Error("SLOT_TAKEN");
-
-      tx.set(apptRef, {
-        id: apptRef.id,
-        clientId: user.uid,
-        providerId,
-        serviceId,
-        start,
-        end,
-        status: "pending_payment",
-        priceCents,
-        platformFeeCents: platformFeeCents(priceCents),
-        intakeId: intakeRef.id,
-        holdExpiresAt,
-        createdAt: now,
-        updatedAt: now,
-      });
-
-      tx.set(intakeRef, {
-        id: intakeRef.id,
-        appointmentId: apptRef.id,
-        clientId: user.uid,
-        providerId,
-        serviceId,
-        answers: intakeAnswers,
-        photoPaths,
-        createdAt: now,
-      });
-    });
+    ({ appointmentId } = await createPendingAppointment({
+      clientId: user.uid,
+      providerId,
+      serviceId,
+      start,
+      end,
+      priceCents,
+      platformFeeCents: platformFeeCents(priceCents),
+      holdExpiresAt,
+      intake: intakeAnswers,
+      photoPaths,
+    }));
   } catch (e) {
-    if (e instanceof Error && e.message === "SLOT_TAKEN") {
-      return NextResponse.json(
-        { error: "That time was just taken. Please pick another." },
-        { status: 409 },
-      );
+    if (e instanceof SlotTakenError) {
+      return NextResponse.json({ error: e.message }, { status: 409 });
     }
     throw e;
   }
@@ -131,13 +98,9 @@ export async function POST(req: Request) {
     actorId: user.uid,
     action: "appointment.create",
     targetType: "appointment",
-    targetId: apptRef.id,
+    targetId: appointmentId,
     timestamp: FieldValue.serverTimestamp(),
   });
 
-  return NextResponse.json({
-    appointmentId: apptRef.id,
-    priceCents,
-    holdExpiresAt,
-  });
+  return NextResponse.json({ appointmentId, priceCents, holdExpiresAt });
 }

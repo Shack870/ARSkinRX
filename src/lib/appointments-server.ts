@@ -18,6 +18,83 @@ interface ConfirmPaymentInfo {
   dev?: boolean;
 }
 
+export class SlotTakenError extends Error {
+  constructor() {
+    super("That time was just taken. Please pick another.");
+    this.name = "SlotTakenError";
+  }
+}
+
+/**
+ * Creates a `pending_payment` appointment plus its intake record inside a
+ * transaction that re-checks for a conflicting booking at the same start time.
+ * Shared by patient self-booking (15-min hold) and admin manual booking.
+ * Throws SlotTakenError on conflict.
+ */
+export async function createPendingAppointment(opts: {
+  clientId: string;
+  providerId: string;
+  serviceId: ServiceType;
+  start: number;
+  end: number;
+  priceCents: number;
+  platformFeeCents: number;
+  holdExpiresAt: number | null;
+  intake: Record<string, unknown>;
+  photoPaths: string[];
+  extra?: Record<string, unknown>;
+}): Promise<{ appointmentId: string; intakeId: string }> {
+  const now = Date.now();
+  const apptRef = adminDb.collection(COLLECTIONS.appointments).doc();
+  const intakeRef = adminDb.collection(COLLECTIONS.intakeResponses).doc();
+
+  await adminDb.runTransaction(async (tx) => {
+    const conflictSnap = await tx.get(
+      adminDb
+        .collection(COLLECTIONS.appointments)
+        .where("providerId", "==", opts.providerId)
+        .where("start", "==", opts.start),
+    );
+    const blocking = conflictSnap.docs.some((d) => {
+      const s = d.get("status");
+      if (["cancelled", "no_show"].includes(s)) return false;
+      if (s === "pending_payment" && (d.get("holdExpiresAt") ?? 0) < now)
+        return false;
+      return true;
+    });
+    if (blocking) throw new SlotTakenError();
+
+    tx.set(apptRef, {
+      id: apptRef.id,
+      clientId: opts.clientId,
+      providerId: opts.providerId,
+      serviceId: opts.serviceId,
+      start: opts.start,
+      end: opts.end,
+      status: "pending_payment",
+      priceCents: opts.priceCents,
+      platformFeeCents: opts.platformFeeCents,
+      intakeId: intakeRef.id,
+      holdExpiresAt: opts.holdExpiresAt,
+      createdAt: now,
+      updatedAt: now,
+      ...(opts.extra ?? {}),
+    });
+    tx.set(intakeRef, {
+      id: intakeRef.id,
+      appointmentId: apptRef.id,
+      clientId: opts.clientId,
+      providerId: opts.providerId,
+      serviceId: opts.serviceId,
+      answers: opts.intake,
+      photoPaths: opts.photoPaths,
+      createdAt: now,
+    });
+  });
+
+  return { appointmentId: apptRef.id, intakeId: intakeRef.id };
+}
+
 /**
  * Marks a pending appointment as booked, creates the payment record, assigns a
  * video room, and notifies the client. Idempotent — safe to call from both the

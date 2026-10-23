@@ -6,12 +6,14 @@ import {
   onAuthStateChanged,
   onIdTokenChanged,
   sendEmailVerification,
+  signInWithCustomToken,
   signInWithEmailAndPassword,
   signOut as fbSignOut,
+  updatePassword,
   updateProfile,
   type User as FirebaseUser,
 } from "firebase/auth";
-import { doc, onSnapshot } from "firebase/firestore";
+import { doc, onSnapshot, updateDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase/client";
 import { COLLECTIONS } from "@/lib/firebase/collections";
 import type { Role, UserProfile } from "@/lib/types";
@@ -26,6 +28,10 @@ interface AuthContextValue {
   signOut: () => Promise<void>;
   refreshClaims: () => Promise<void>;
   resendVerification: () => Promise<void>;
+  /** Sign in with a server-minted custom token (guest booking). */
+  signInWithToken: (token: string) => Promise<FirebaseUser>;
+  /** Set a password on a password-less (guest/admin-created) account. */
+  setPassword: (password: string) => Promise<void>;
 }
 
 const AuthContext = React.createContext<AuthContextValue | undefined>(undefined);
@@ -119,6 +125,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (auth.currentUser) await sendEmailVerification(auth.currentUser);
   }, []);
 
+  const signInWithToken = React.useCallback(async (token: string) => {
+    const cred = await signInWithCustomToken(auth, token);
+    const tokenResult = await cred.user.getIdTokenResult(true);
+    setRole((tokenResult.claims.role as Role) ?? null);
+    return cred.user;
+  }, []);
+
+  const setPassword = React.useCallback(async (password: string) => {
+    const u = auth.currentUser;
+    if (!u) throw new Error("Not signed in.");
+    await updatePassword(u, password);
+    await updateDoc(doc(db, COLLECTIONS.users, u.uid), {
+      passwordSet: true,
+      updatedAt: Date.now(),
+    });
+  }, []);
+
   const value: AuthContextValue = {
     user,
     profile,
@@ -129,6 +152,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signOut,
     refreshClaims,
     resendVerification,
+    signInWithToken,
+    setPassword,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

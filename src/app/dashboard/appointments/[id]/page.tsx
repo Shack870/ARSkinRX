@@ -17,6 +17,7 @@ import { authedFetch } from "@/lib/api-client";
 import { IntakeSummary } from "@/components/intake-summary";
 import { IntakePhotos } from "@/components/intake-photos";
 import { DeviceCheck } from "@/components/device-check";
+import { FinishAccountCard } from "@/components/finish-account-card";
 import { LiveBadge } from "@/components/live/live-badge";
 import { SERVICE_MAP } from "@/lib/services";
 import { formatCurrency } from "@/lib/utils";
@@ -138,6 +139,8 @@ function Detail({ id }: { id: string }) {
           Payment received — your visit is confirmed!
         </Card>
       )}
+
+      <FinishAccountCard />
 
       <Card className="p-6">
         <div className="flex items-start justify-between gap-3">

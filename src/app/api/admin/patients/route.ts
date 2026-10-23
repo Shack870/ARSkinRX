@@ -3,10 +3,33 @@ import { adminDb } from "@/lib/firebase/admin";
 import { COLLECTIONS } from "@/lib/firebase/collections";
 import { requireAdmin } from "@/lib/api-auth";
 
-/** GET /api/admin/patients — list of client accounts. */
+/**
+ * GET /api/admin/patients — list of client accounts.
+ * GET /api/admin/patients?email=x — exact-match lookup → { patient | null }.
+ */
 export async function GET(req: Request) {
   const admin = await requireAdmin(req);
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const email = new URL(req.url).searchParams.get("email")?.trim().toLowerCase();
+  if (email) {
+    const q = await adminDb
+      .collection(COLLECTIONS.users)
+      .where("email", "==", email)
+      .limit(1)
+      .get();
+    const d = q.docs[0];
+    return NextResponse.json({
+      patient: d
+        ? {
+            uid: d.id,
+            displayName: d.get("displayName") ?? "",
+            phone: d.get("phone") ?? "",
+            role: d.get("role"),
+          }
+        : null,
+    });
+  }
 
   const snap = await adminDb
     .collection(COLLECTIONS.users)

@@ -70,7 +70,7 @@ function RegisterInner() {
     } catch (err) {
       const msg =
         err instanceof Error && err.message.includes("email-already")
-          ? "That email is already registered. Try logging in."
+          ? "That email already has an account. Log in, or if you booked as a guest, use \"Forgot password\" to set one."
           : err instanceof Error
             ? err.message
             : "Something went wrong.";

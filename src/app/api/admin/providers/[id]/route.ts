@@ -14,7 +14,7 @@ export async function GET(
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;
-  const [pSnap, uSnap, apptSnap] = await Promise.all([
+  const [pSnap, uSnap, apptSnap, availSnap] = await Promise.all([
     adminDb.collection(COLLECTIONS.providers).doc(id).get(),
     adminDb.collection(COLLECTIONS.users).doc(id).get(),
     adminDb
@@ -22,12 +22,31 @@ export async function GET(
       .where("providerId", "==", id)
       .orderBy("start", "desc")
       .get(),
+    adminDb.collection(COLLECTIONS.availability).doc(id).get(),
   ]);
   if (!pSnap.exists) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
   const appts = apptSnap.docs.map((d) => d.data());
+  const now = Date.now();
+
+  // Calendar needs patient names; resolve once per unique client.
+  const clientIds = Array.from(new Set(appts.map((a) => a.clientId as string)));
+  const clientNames = new Map<string, string>();
+  await Promise.all(
+    clientIds.map(async (cid) => {
+      const u = await adminDb.collection(COLLECTIONS.users).doc(cid).get();
+      clientNames.set(cid, u.get("displayName") ?? "Patient");
+    }),
+  );
+  const upcoming = appts
+    .filter(
+      (a) =>
+        a.start >= now - 7 * 24 * 60 * 60_000 &&
+        !["cancelled", "pending_payment"].includes(a.status),
+    )
+    .sort((a, b) => a.start - b.start);
   const completed = appts.filter((a) => a.status === "completed");
   const noShow = appts.filter((a) => a.status === "no_show").length;
   const cancelled = appts.filter((a) => a.status === "cancelled").length;
@@ -63,12 +82,34 @@ export async function GET(
         .filter((a) => !a.providerPaidAt)
         .reduce((s, a) => s + net(a), 0),
     },
+    counts: {
+      total: appts.filter((a) => a.status !== "pending_payment").length,
+      upcoming: appts.filter(
+        (a) => a.start >= now && ["booked", "in_progress"].includes(a.status),
+      ).length,
+    },
+    availability: availSnap.exists
+      ? {
+          timezone: availSnap.get("timezone") ?? "America/Chicago",
+          windows: availSnap.get("windows") ?? [],
+          blackoutDates: availSnap.get("blackoutDates") ?? [],
+        }
+      : null,
     appointments: appts.slice(0, 50).map((a) => ({
       id: a.id,
       serviceId: a.serviceId,
       start: a.start,
       status: a.status,
       priceCents: a.priceCents,
+    })),
+    calendar: upcoming.map((a) => ({
+      id: a.id,
+      serviceId: a.serviceId,
+      start: a.start,
+      end: a.end,
+      status: a.status,
+      isLive: a.isLive === true,
+      clientName: clientNames.get(a.clientId) ?? "Patient",
     })),
   });
 }

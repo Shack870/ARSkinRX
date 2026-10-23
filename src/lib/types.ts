@@ -64,6 +64,12 @@ export interface UserProfile {
   smsOptInAt?: number;
   /** When the patient accepted Terms/Privacy/Telehealth Consent at signup. */
   consentAcceptedAt?: number | null;
+  /**
+   * False for accounts created during guest booking or by an admin, until the
+   * patient sets a password. Drives the "finish your account" prompt.
+   */
+  passwordSet?: boolean;
+  createdVia?: "signup" | "booking" | "admin";
   createdAt: number;
   updatedAt: number;
 }

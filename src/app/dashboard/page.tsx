@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SkeletonRows } from "@/components/ui/skeleton";
 import { VerifyEmailBanner } from "@/components/verify-email-banner";
+import { FinishAccountCard } from "@/components/finish-account-card";
 import type { Appointment } from "@/lib/types";
 
 export default function ClientOverview() {
@@ -55,7 +56,8 @@ export default function ClientOverview() {
         </Link>
       </div>
 
-      <VerifyEmailBanner />
+      <FinishAccountCard />
+      {profile?.passwordSet !== false && <VerifyEmailBanner />}
 
       {reschedules.map((a) => (
         <Card key={a.id} className="border-amber-200 bg-amber-50 p-4">

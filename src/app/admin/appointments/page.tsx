@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Download, Loader2, Search } from "lucide-react";
+import { CalendarPlus, Download, Loader2, Search } from "lucide-react";
 import { authedFetch } from "@/lib/api-client";
 import { SERVICE_MAP } from "@/lib/services";
 import { formatDateTime } from "@/lib/datetime";
@@ -89,9 +89,16 @@ export default function AdminAppointmentsPage() {
     <div className="mx-auto max-w-4xl space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold tracking-tight">Appointments</h1>
-        <Button variant="outline" size="sm" onClick={exportCsv} disabled={filtered.length === 0}>
-          <Download className="h-4 w-4" /> Export CSV
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={exportCsv} disabled={filtered.length === 0}>
+            <Download className="h-4 w-4" /> Export CSV
+          </Button>
+          <Link href="/admin/appointments/new">
+            <Button size="sm">
+              <CalendarPlus className="h-4 w-4" /> New appointment
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-3">

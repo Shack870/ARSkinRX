@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Steps } from "@/components/ui/steps";
 import { HoldTimer } from "@/components/hold-timer";
@@ -17,6 +18,7 @@ import { LiveConnectCard } from "@/components/live/live-connect-card";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth-context";
 import { authedFetch } from "@/lib/api-client";
+import { auth } from "@/lib/firebase/client";
 import { uploadIntakePhoto } from "@/lib/storage";
 import { SERVICES, getServiceBySlug, getService } from "@/lib/services";
 import { formatCurrency } from "@/lib/utils";
@@ -63,7 +65,19 @@ function BookInner() {
   const router = useRouter();
   const params = useSearchParams();
   const toast = useToast();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, signInWithToken, signIn } = useAuth();
+
+  // Guest booking: capture identity at intake; account is created silently and
+  // the patient sets a password after paying.
+  const [guest, setGuest] = React.useState({
+    displayName: "",
+    email: "",
+    phone: "",
+    consent: false,
+  });
+  const [guestPassword, setGuestPassword] = React.useState("");
+  const [existingAccount, setExistingAccount] = React.useState(false);
+  const [creatingAccount, setCreatingAccount] = React.useState(false);
 
   const initialService = params.get("service")
     ? getServiceBySlug(params.get("service")!)?.id ?? null
@@ -180,8 +194,84 @@ function BookInner() {
     }
   }
 
+  /**
+   * Make sure the visitor has a signed-in account before anything that needs
+   * one (photo upload, holding a slot, Live Connect). Returns true if signed in.
+   * For a brand-new email this silently creates the account; for a known email
+   * it reveals a password field instead.
+   */
+  async function ensureAccount(): Promise<boolean> {
+    if (user) return true;
+    setError(null);
+    const email = guest.email.trim();
+    if (guest.displayName.trim().length < 2) {
+      setError("Enter your name.");
+      return false;
+    }
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+      setError("Enter a valid email.");
+      return false;
+    }
+    if (!guest.consent) {
+      setError("Please agree to the Terms and Telehealth Consent.");
+      return false;
+    }
+    setCreatingAccount(true);
+    try {
+      if (existingAccount) {
+        if (guestPassword.length < 1) {
+          setError("Enter your password to continue.");
+          return false;
+        }
+        await signIn(email, guestPassword);
+        return true;
+      }
+      const res = await fetch("/api/auth/guest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          displayName: guest.displayName.trim(),
+          phone: guest.phone.trim(),
+          consent: true,
+        }),
+      });
+      const data = await res.json();
+      if (res.status === 409 && data.exists) {
+        setExistingAccount(true);
+        setError(
+          data.needsPassword
+            ? "You've booked with us before but haven't set a password yet. Use \"Forgot password\" below to set one, then continue."
+            : "Welcome back! Enter your password to continue.",
+        );
+        return false;
+      }
+      if (!res.ok) throw new Error(data.error ?? "Couldn't create your account.");
+      await signInWithToken(data.customToken);
+      return true;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Something went wrong.";
+      setError(
+        /wrong-password|invalid-credential|invalid-login/.test(msg)
+          ? "That password doesn't match. Try again or use \"Forgot password\"."
+          : msg,
+      );
+      return false;
+    } finally {
+      setCreatingAccount(false);
+    }
+  }
+
+  async function continueFromIntake() {
+    if (await ensureAccount()) next();
+  }
+
   async function handlePhotos(files: FileList | null) {
-    if (!files || !user) return;
+    if (!files) return;
+    if (!(await ensureAccount())) return;
+    // `user` from context may lag one render behind a just-completed sign-in.
+    const uid = user?.uid ?? auth.currentUser?.uid;
+    if (!uid) return;
     setUploadingPhoto(true);
     setError(null);
     try {
@@ -192,7 +282,7 @@ function BookInner() {
           setError("Photos must be under 15 MB.");
           continue;
         }
-        uploaded.push(await uploadIntakePhoto(user.uid, file));
+        uploaded.push(await uploadIntakePhoto(uid, file));
       }
       setPhotoPaths((p) => [...p, ...uploaded]);
     } catch {
@@ -250,6 +340,17 @@ function BookInner() {
   // No-Wait Live: create the request, take payment, head to the search screen.
   async function startLiveVisit() {
     if (!serviceId) return;
+    // Guests on the Provider step haven't given us a name/email yet — send
+    // them to Intake (Live Connect is offered again right after it).
+    if (!user && step < 2) {
+      setStep(2);
+      toast.info(
+        "Almost there",
+        "Add your name and email, then tap Live Connect on the next screen.",
+      );
+      return;
+    }
+    if (!(await ensureAccount())) return;
     setStartingLive(true);
     setError(null);
     try {
@@ -305,35 +406,9 @@ function BookInner() {
       </>
     );
   }
-  if (!user) {
-    const nextUrl = `/book${serviceId ? `?service=${getService(serviceId)?.slug}` : ""}`;
-    return (
-      <>
-        <SiteHeader />
-        <main className="flex flex-1 items-center justify-center bg-[var(--muted)] px-4 py-16">
-          <Card className="w-full max-w-md p-8 text-center">
-            <h1 className="text-2xl font-semibold tracking-tight">
-              Sign in to book
-            </h1>
-            <p className="mt-2 text-[var(--muted-foreground)]">
-              Create an account or log in to schedule your visit.
-            </p>
-            <div className="mt-6 flex flex-col gap-3">
-              <Link href={`/register?next=${encodeURIComponent(nextUrl)}`}>
-                <Button className="w-full">Create account</Button>
-              </Link>
-              <Link href={`/login?next=${encodeURIComponent(nextUrl)}`}>
-                <Button variant="outline" className="w-full">
-                  Log in
-                </Button>
-              </Link>
-            </div>
-          </Card>
-        </main>
-      </>
-    );
-  }
-
+  const loginHref = `/login?next=${encodeURIComponent(
+    `/book${serviceId ? `?service=${getService(serviceId)?.slug}` : ""}`,
+  )}`;
   const slotsByDay = groupByDay(slots);
 
   return (
@@ -454,6 +529,112 @@ function BookInner() {
             {/* Step 2: Intake */}
             {step === 2 && (
               <div className="space-y-4">
+                {!user && (
+                  <div className="space-y-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--primary-soft)]/40 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h2 className="text-lg font-semibold">Your details</h2>
+                        <p className="text-xs text-[var(--muted-foreground)]">
+                          We&apos;ll use these for your visit confirmation. You can
+                          set a password after booking.
+                        </p>
+                      </div>
+                      <Link
+                        href={loginHref}
+                        className="shrink-0 text-xs text-[var(--primary)] underline"
+                      >
+                        Have an account? Log in
+                      </Link>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <Label htmlFor="g-name">Full name</Label>
+                        <Input
+                          id="g-name"
+                          value={guest.displayName}
+                          onChange={(e) =>
+                            setGuest({ ...guest, displayName: e.target.value })
+                          }
+                          autoComplete="name"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="g-email">Email</Label>
+                        <Input
+                          id="g-email"
+                          type="email"
+                          value={guest.email}
+                          onChange={(e) => {
+                            setGuest({ ...guest, email: e.target.value });
+                            setExistingAccount(false);
+                          }}
+                          autoComplete="email"
+                        />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <Label htmlFor="g-phone">
+                          Phone{" "}
+                          <span className="font-normal text-[var(--muted-foreground)]">
+                            (optional, for reminders)
+                          </span>
+                        </Label>
+                        <Input
+                          id="g-phone"
+                          type="tel"
+                          value={guest.phone}
+                          onChange={(e) =>
+                            setGuest({ ...guest, phone: e.target.value })
+                          }
+                          autoComplete="tel"
+                        />
+                      </div>
+                      {existingAccount && (
+                        <div className="sm:col-span-2">
+                          <Label htmlFor="g-password">Password</Label>
+                          <Input
+                            id="g-password"
+                            type="password"
+                            value={guestPassword}
+                            onChange={(e) => setGuestPassword(e.target.value)}
+                            autoComplete="current-password"
+                          />
+                          <Link
+                            href="/forgot-password"
+                            className="mt-1 inline-block text-xs text-[var(--primary)] underline"
+                          >
+                            Forgot password?
+                          </Link>
+                        </div>
+                      )}
+                    </div>
+                    <label className="flex cursor-pointer items-start gap-3">
+                      <span className="mt-0.5">
+                        <Checkbox
+                          checked={guest.consent}
+                          onCheckedChange={(v) =>
+                            setGuest({ ...guest, consent: v === true })
+                          }
+                        />
+                      </span>
+                      <span className="text-xs leading-relaxed text-[var(--muted-foreground)]">
+                        I agree to the{" "}
+                        <Link href="/legal/terms" target="_blank" className="text-[var(--primary)] underline">
+                          Terms
+                        </Link>
+                        ,{" "}
+                        <Link href="/legal/privacy" target="_blank" className="text-[var(--primary)] underline">
+                          Privacy Policy
+                        </Link>
+                        , and{" "}
+                        <Link href="/legal/consent" target="_blank" className="text-[var(--primary)] underline">
+                          Telehealth Consent
+                        </Link>
+                        . ARSkinRX serves Arkansas residents and is not for
+                        emergencies.
+                      </span>
+                    </label>
+                  </div>
+                )}
                 <h2 className="text-lg font-semibold">Tell us about it</h2>
                 <div>
                   <Label htmlFor="concern">
@@ -740,7 +921,11 @@ function BookInner() {
                 <span />
               )}
               {step === 2 && (
-                <Button onClick={next} disabled={!intake.concern.trim()}>
+                <Button
+                  onClick={continueFromIntake}
+                  disabled={!intake.concern.trim() || creatingAccount}
+                >
+                  {creatingAccount && <Loader2 className="h-4 w-4 animate-spin" />}
                   Continue <ArrowRight className="h-4 w-4" />
                 </Button>
               )}
