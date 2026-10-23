@@ -52,6 +52,7 @@ export async function POST(req: Request) {
         : undefined,
     amountCents: session.amount_total ?? snap.get("priceCents"),
     platformFeeCents: snap.get("platformFeeCents") ?? 0,
+    payoutVia: session.metadata?.payoutVia === "stripe" ? "stripe" : "manual",
   });
 
   return NextResponse.json({ ok: true });

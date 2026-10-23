@@ -6,43 +6,102 @@ import { requireAdmin } from "@/lib/api-auth";
 import { sendEmail, sendSms } from "@/lib/notify";
 import { formatCurrency } from "@/lib/utils";
 
+/** Visits split through Stripe Connect are never owed manually. */
+function isStripeSplit(d: FirebaseFirestore.QueryDocumentSnapshot): boolean {
+  return d.get("payoutVia") === "stripe" || Boolean(d.get("stripeTransferId"));
+}
+
+function netCents(d: FirebaseFirestore.QueryDocumentSnapshot): number {
+  return (d.get("priceCents") ?? 0) - (d.get("platformFeeCents") ?? 0);
+}
+
 /**
  * GET /api/admin/payouts
  * Returns outstanding balances owed to each provider (net of platform fee) for
- * completed, not-yet-paid visits, plus recent payout history.
+ * completed, not-yet-paid visits that were NOT split through Stripe Connect,
+ * each nurse's payout mode (Auto via Stripe vs Manual), a summary of what
+ * Stripe has already routed automatically, and recent manual payout history.
  */
 export async function GET(req: Request) {
   const admin = await requireAdmin(req);
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const completedSnap = await adminDb
-    .collection(COLLECTIONS.appointments)
-    .where("status", "==", "completed")
-    .get();
+  const [completedSnap, providersSnap] = await Promise.all([
+    adminDb
+      .collection(COLLECTIONS.appointments)
+      .where("status", "==", "completed")
+      .get(),
+    adminDb.collection(COLLECTIONS.providers).get(),
+  ]);
+
+  const nameCache = new Map<string, Promise<string>>();
+  const nameOf = (uid: string) => {
+    let p = nameCache.get(uid);
+    if (!p) {
+      p = adminDb
+        .collection(COLLECTIONS.users)
+        .doc(uid)
+        .get()
+        .then((u) => (u.get("displayName") as string | undefined) ?? "—");
+      nameCache.set(uid, p);
+    }
+    return p;
+  };
+
+  const payoutModeOf = new Map<string, "stripe" | "manual">();
+  for (const p of providersSnap.docs) {
+    payoutModeOf.set(
+      p.id,
+      p.get("stripeOnboardingComplete") === true ? "stripe" : "manual",
+    );
+  }
 
   const owed = new Map<
     string,
     { providerId: string; amountCents: number; visitCount: number }
   >();
+  const auto = new Map<
+    string,
+    { providerId: string; amountCents: number; visitCount: number }
+  >();
   for (const d of completedSnap.docs) {
-    if (d.get("providerPaidAt")) continue;
     const providerId = d.get("providerId");
-    const net = (d.get("priceCents") ?? 0) - (d.get("platformFeeCents") ?? 0);
-    const cur = owed.get(providerId) ?? {
-      providerId,
-      amountCents: 0,
-      visitCount: 0,
-    };
-    cur.amountCents += net;
+    if (isStripeSplit(d)) {
+      const cur = auto.get(providerId) ?? { providerId, amountCents: 0, visitCount: 0 };
+      cur.amountCents += netCents(d);
+      cur.visitCount += 1;
+      auto.set(providerId, cur);
+      continue;
+    }
+    if (d.get("providerPaidAt")) continue;
+    const cur = owed.get(providerId) ?? { providerId, amountCents: 0, visitCount: 0 };
+    cur.amountCents += netCents(d);
     cur.visitCount += 1;
     owed.set(providerId, cur);
   }
 
   const outstanding = await Promise.all(
-    Array.from(owed.values()).map(async (o) => {
-      const u = await adminDb.collection(COLLECTIONS.users).doc(o.providerId).get();
-      return { ...o, providerName: u.get("displayName") ?? "—" };
-    }),
+    Array.from(owed.values()).map(async (o) => ({
+      ...o,
+      providerName: await nameOf(o.providerId),
+      payoutMode: payoutModeOf.get(o.providerId) ?? "manual",
+    })),
+  );
+  const autoPaid = await Promise.all(
+    Array.from(auto.values()).map(async (o) => ({
+      ...o,
+      providerName: await nameOf(o.providerId),
+    })),
+  );
+  const providers = await Promise.all(
+    providersSnap.docs
+      .filter((p) => p.get("status") === "approved")
+      .map(async (p) => ({
+        providerId: p.id,
+        providerName: await nameOf(p.id),
+        payoutMode: payoutModeOf.get(p.id) ?? "manual",
+        stripeAccountId: (p.get("stripeAccountId") as string | undefined) ?? null,
+      })),
   );
 
   const historySnap = await adminDb
@@ -52,13 +111,9 @@ export async function GET(req: Request) {
     .get();
   const history = await Promise.all(
     historySnap.docs.map(async (d) => {
-      const u = await adminDb
-        .collection(COLLECTIONS.users)
-        .doc(d.get("providerId"))
-        .get();
       return {
         id: d.id,
-        providerName: u.get("displayName") ?? "—",
+        providerName: await nameOf(d.get("providerId")),
         amountCents: d.get("amountCents"),
         method: d.get("method"),
         note: d.get("note") ?? "",
@@ -68,7 +123,7 @@ export async function GET(req: Request) {
     }),
   );
 
-  return NextResponse.json({ outstanding, history });
+  return NextResponse.json({ outstanding, autoPaid, providers, history });
 }
 
 /**
@@ -94,15 +149,15 @@ export async function POST(req: Request) {
     .where("status", "==", "completed")
     .get();
 
-  const unpaid = completedSnap.docs.filter((d) => !d.get("providerPaidAt"));
+  // Only manually-owed visits: skip anything already split via Stripe Connect.
+  const unpaid = completedSnap.docs.filter(
+    (d) => !d.get("providerPaidAt") && !isStripeSplit(d),
+  );
   if (unpaid.length === 0) {
     return NextResponse.json({ error: "Nothing outstanding" }, { status: 400 });
   }
 
-  const amountCents = unpaid.reduce(
-    (sum, d) => sum + ((d.get("priceCents") ?? 0) - (d.get("platformFeeCents") ?? 0)),
-    0,
-  );
+  const amountCents = unpaid.reduce((sum, d) => sum + netCents(d), 0);
   const now = Date.now();
   const payoutRef = adminDb.collection(COLLECTIONS.payouts).doc();
 

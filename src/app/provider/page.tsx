@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { GoLiveToggle } from "@/components/live/go-live-toggle";
 import { LiveBadge } from "@/components/live/live-badge";
+import { PayoutSetupCard } from "@/components/provider/payout-setup-card";
 import type { Appointment } from "@/lib/types";
 
 export default function ProviderOverview() {
@@ -79,6 +80,8 @@ export default function ProviderOverview() {
       </div>
 
       <GoLiveToggle />
+
+      {provider?.status === "approved" && <PayoutSetupCard compact />}
 
       {provider?.status === "pending" && (
         <Card className="border-amber-200 bg-amber-50 p-4">

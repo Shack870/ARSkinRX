@@ -21,3 +21,25 @@ export const PLATFORM_FEE_BPS = Number(process.env.PLATFORM_FEE_BPS ?? "5000");
 export function platformFeeCents(amountCents: number): number {
   return Math.round((amountCents * PLATFORM_FEE_BPS) / 10000);
 }
+
+/**
+ * A nurse's Express account can receive the destination-charge split only once
+ * Stripe has everything it needs: onboarding finished, charges allowed, and
+ * payouts to their bank/debit card enabled.
+ */
+export function isConnectAccountReady(account: Stripe.Account): boolean {
+  return (
+    account.details_submitted === true &&
+    account.charges_enabled === true &&
+    account.payouts_enabled === true
+  );
+}
+
+/**
+ * Stripe returns this when the platform hasn't finished signing up for Connect
+ * in the Dashboard. We surface a friendly message instead of a 500.
+ */
+export function isConnectNotEnabledError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /signed up for Connect/i.test(msg);
+}

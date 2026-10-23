@@ -12,11 +12,22 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton, SkeletonRows } from "@/components/ui/skeleton";
 import { LiveBadge } from "@/components/live/live-badge";
+import { PayoutSetupCard } from "@/components/provider/payout-setup-card";
 import type { Appointment, Payout } from "@/lib/types";
 
 /** The provider's share of a visit (gross minus the platform fee). */
 function share(a: Appointment) {
   return a.priceCents - a.platformFeeCents;
+}
+
+/** Split automatically through Stripe Connect — already the nurse's money. */
+function viaStripe(a: Appointment) {
+  return a.payoutVia === "stripe" || Boolean(a.stripeTransferId);
+}
+
+/** Paid either by a recorded manual payout or automatically via Stripe. */
+function isPaid(a: Appointment) {
+  return Boolean(a.providerPaidAt) || viaStripe(a);
 }
 
 function sum(list: Appointment[]) {
@@ -47,8 +58,9 @@ export default function EarningsPage() {
     [appointments],
   );
 
-  const paid = completed.filter((a) => a.providerPaidAt);
-  const unpaid = completed.filter((a) => !a.providerPaidAt);
+  const paid = completed.filter(isPaid);
+  const unpaid = completed.filter((a) => !isPaid(a));
+  const autoPaid = completed.filter(viaStripe);
   const paidOut = sum(paid);
   const pending = sum(unpaid);
   const lifetime = paidOut + pending;
@@ -72,16 +84,20 @@ export default function EarningsPage() {
         </p>
       </div>
 
+      <PayoutSetupCard />
+
       <Card className="p-6">
         <div className="flex items-start gap-3">
           <Wallet className="mt-0.5 h-5 w-5 text-[var(--primary)]" />
           <div>
             <h2 className="font-semibold">How payouts work</h2>
             <p className="text-sm text-[var(--muted-foreground)]">
-              You earn {sharePct}% of each completed visit. ARSkinRX sends
-              payouts directly (Zelle, check, or ACH) and marks them here once
-              sent — you&apos;ll get a confirmation by email/text each time.
-              No bank setup needed for now.
+              You earn {sharePct}% of each completed visit. With Stripe payouts
+              active, your share is split off automatically when the patient
+              pays and deposited to your bank or debit card on Stripe&apos;s
+              schedule. Visits before that (or if you haven&apos;t set up
+              Stripe) are paid by ARSkinRX directly — Zelle, check, or ACH —
+              and marked here once sent, with a confirmation by email/text.
             </p>
           </div>
         </div>
@@ -107,10 +123,14 @@ export default function EarningsPage() {
           <Stat
             label="Paid out so far"
             value={formatCurrency(paidOut)}
-            sub={`${payouts.length} payout${payouts.length === 1 ? "" : "s"}`}
+            sub={
+              autoPaid.length > 0
+                ? `${autoPaid.length} via Stripe · ${payouts.length} manual payout${payouts.length === 1 ? "" : "s"}`
+                : `${payouts.length} payout${payouts.length === 1 ? "" : "s"}`
+            }
           />
           <Stat
-            label="Pending payout"
+            label="Pending manual payout"
             value={formatCurrency(pending)}
             sub={`${unpaid.length} unpaid visit${unpaid.length === 1 ? "" : "s"}`}
             highlight
@@ -150,9 +170,9 @@ export default function EarningsPage() {
         )}
       </Card>
 
-      {/* Payout history */}
+      {/* Manual payout history (Stripe-split visits are tracked in Stripe) */}
       <Card className="p-6">
-        <h2 className="mb-4 font-semibold">Payout history</h2>
+        <h2 className="mb-4 font-semibold">Manual payout history</h2>
         {loading ? (
           <SkeletonRows rows={2} />
         ) : payouts.length === 0 ? (
@@ -194,7 +214,9 @@ function VisitRow({ appt }: { appt: Appointment }) {
         </p>
       </div>
       <div className="flex shrink-0 items-center gap-3">
-        {appt.providerPaidAt ? (
+        {viaStripe(appt) ? (
+          <Badge variant="success">Paid via Stripe</Badge>
+        ) : appt.providerPaidAt ? (
           <Badge variant="success">Paid</Badge>
         ) : (
           <Badge variant="warning">Pending</Badge>

@@ -101,8 +101,12 @@ export interface ProviderProfile {
   priceOverrides?: Partial<Record<ServiceType, number>>;
   attestations: ProviderAttestations;
   status: ProviderStatus;
-  /** Stripe Connect account id for payouts. */
+  /** Stripe Connect (Express) account id for automatic payouts. */
   stripeAccountId?: string;
+  /**
+   * True once Stripe reports details_submitted && charges_enabled &&
+   * payouts_enabled. Visits paid after this point are split automatically.
+   */
   stripeOnboardingComplete: boolean;
   ratingAvg?: number;
   ratingCount?: number;
@@ -143,6 +147,9 @@ export type AppointmentStatus =
 
 export type NoShowParty = "client" | "provider" | null;
 
+/** How a nurse is paid their share of a visit. */
+export type PayoutVia = "stripe" | "manual";
+
 export interface Appointment {
   id: string;
   clientId: string;
@@ -164,7 +171,17 @@ export interface Appointment {
   /** Set when this appointment was rescheduled into a new one. */
   rescheduledToId?: string;
   rescheduledFromId?: string;
-  /** Manual provider payout tracking (Stripe Connect deferred for now). */
+  /**
+   * How the nurse gets their share of this visit.
+   * - "stripe": split automatically through Stripe Connect (destination charge
+   *   at checkout, or a Transfer on completion for live visits). Never shows
+   *   up as owed in admin payouts.
+   * - "manual" (or unset): the owner pays by Zelle/check/ACH and records it.
+   */
+  payoutVia?: PayoutVia;
+  /** Stripe Transfer id when the nurse's share was sent after the fact (live visits). */
+  stripeTransferId?: string;
+  /** Manual provider payout tracking (for nurses not on Stripe Connect). */
   providerPaidAt?: number;
   payoutId?: string;
   /** Cancellation metadata. */
@@ -256,6 +273,7 @@ export interface PaymentRecord {
   currency: string;
   stripePaymentIntentId: string;
   stripeChargeId?: string;
+  payoutVia?: PayoutVia;
   status: PaymentStatus;
   refundedCents: number;
   createdAt: number;

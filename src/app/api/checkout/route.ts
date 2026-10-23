@@ -72,6 +72,10 @@ export async function POST(req: Request) {
     .get();
   const destination = providerSnap.get("stripeAccountId") as string | undefined;
   const onboarded = providerSnap.get("stripeOnboardingComplete") === true;
+  // Destination charge: the nurse's Connect account receives the full amount
+  // minus our application fee (the 50/50 split), and Stripe handles their
+  // payout + 1099. Nurses who haven't onboarded are paid manually instead.
+  const autoSplit = Boolean(destination && onboarded);
 
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
@@ -88,14 +92,13 @@ export async function POST(req: Request) {
         quantity: 1,
       },
     ],
-    payment_intent_data:
-      destination && onboarded
-        ? {
-            application_fee_amount: appt.platformFeeCents,
-            transfer_data: { destination },
-          }
-        : undefined,
-    metadata: { appointmentId },
+    payment_intent_data: autoSplit
+      ? {
+          application_fee_amount: appt.platformFeeCents,
+          transfer_data: { destination: destination! },
+        }
+      : undefined,
+    metadata: { appointmentId, payoutVia: autoSplit ? "stripe" : "manual" },
     success_url: `${APP_URL}/dashboard/appointments/${appointmentId}?paid=1&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${APP_URL}/dashboard/appointments/${appointmentId}?canceled=1`,
   });

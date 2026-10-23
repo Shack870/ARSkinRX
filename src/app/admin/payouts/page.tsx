@@ -6,17 +6,33 @@ import { authedFetch } from "@/lib/api-client";
 import { formatCurrency } from "@/lib/utils";
 import { formatDate } from "@/lib/datetime";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useConfirm } from "@/components/ui/confirm";
 import { useToast } from "@/components/ui/toast";
 
+type PayoutMode = "stripe" | "manual";
+
 interface Outstanding {
   providerId: string;
   providerName: string;
   amountCents: number;
   visitCount: number;
+  payoutMode: PayoutMode;
+}
+interface AutoPaid {
+  providerId: string;
+  providerName: string;
+  amountCents: number;
+  visitCount: number;
+}
+interface ProviderMode {
+  providerId: string;
+  providerName: string;
+  payoutMode: PayoutMode;
+  stripeAccountId: string | null;
 }
 interface HistoryItem {
   id: string;
@@ -30,6 +46,8 @@ interface HistoryItem {
 
 export default function AdminPayoutsPage() {
   const [outstanding, setOutstanding] = React.useState<Outstanding[]>([]);
+  const [autoPaid, setAutoPaid] = React.useState<AutoPaid[]>([]);
+  const [providers, setProviders] = React.useState<ProviderMode[]>([]);
   const [history, setHistory] = React.useState<HistoryItem[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [payingId, setPayingId] = React.useState<string | null>(null);
@@ -43,6 +61,8 @@ export default function AdminPayoutsPage() {
       .then((r) => r.json())
       .then((d) => {
         setOutstanding(d.outstanding ?? []);
+        setAutoPaid(d.autoPaid ?? []);
+        setProviders(d.providers ?? []);
         setHistory(d.history ?? []);
       })
       .finally(() => setLoading(false));
@@ -87,13 +107,18 @@ export default function AdminPayoutsPage() {
   }
 
   const totalOwed = outstanding.reduce((s, o) => s + o.amountCents, 0);
+  const totalAuto = autoPaid.reduce((s, o) => s + o.amountCents, 0);
+  const stripeCount = providers.filter((p) => p.payoutMode === "stripe").length;
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Provider payouts</h1>
         <p className="text-[var(--muted-foreground)]">
-          Pay providers manually, then mark it here to send them a confirmation.
+          Nurses on <strong>Auto (Stripe)</strong> get their share split off
+          automatically at payment — nothing to do here. Nurses on{" "}
+          <strong>Manual</strong> are paid by you (Zelle, check, ACH); record
+          it below to send them a confirmation.
         </p>
       </div>
 
@@ -103,7 +128,33 @@ export default function AdminPayoutsPage() {
         <>
           <Card className="p-6">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="font-semibold">Outstanding</h2>
+              <h2 className="font-semibold">Payout method by nurse</h2>
+              <span className="text-sm text-[var(--muted-foreground)]">
+                {stripeCount} of {providers.length} on Stripe
+              </span>
+            </div>
+            {providers.length === 0 ? (
+              <p className="text-sm text-[var(--muted-foreground)]">
+                No approved nurses yet.
+              </p>
+            ) : (
+              <ul className="divide-y divide-[var(--border)]">
+                {providers.map((p) => (
+                  <li
+                    key={p.providerId}
+                    className="flex items-center justify-between py-2.5 text-sm"
+                  >
+                    <span className="font-medium">{p.providerName}</span>
+                    <PayoutModeBadge mode={p.payoutMode} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+
+          <Card className="p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="font-semibold">Outstanding (manual)</h2>
               <span className="text-sm text-[var(--muted-foreground)]">
                 Total owed:{" "}
                 <span className="font-semibold text-[var(--foreground)]">
@@ -113,7 +164,7 @@ export default function AdminPayoutsPage() {
             </div>
             {outstanding.length === 0 ? (
               <p className="py-6 text-center text-sm text-[var(--muted-foreground)]">
-                Nothing outstanding — all providers are paid up.
+                Nothing outstanding — all manual payouts are up to date.
               </p>
             ) : (
               <div className="space-y-4">
@@ -124,10 +175,16 @@ export default function AdminPayoutsPage() {
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>
-                        <p className="font-medium">{o.providerName}</p>
+                        <p className="flex flex-wrap items-center gap-2 font-medium">
+                          {o.providerName}
+                          <PayoutModeBadge mode={o.payoutMode} />
+                        </p>
                         <p className="text-sm text-[var(--muted-foreground)]">
                           {o.visitCount} visit{o.visitCount > 1 ? "s" : ""} awaiting
-                          payout
+                          manual payout
+                          {o.payoutMode === "stripe"
+                            ? " (completed before Stripe was set up)"
+                            : ""}
                         </p>
                       </div>
                       <span className="text-lg font-semibold text-[var(--primary)]">
@@ -184,11 +241,44 @@ export default function AdminPayoutsPage() {
             )}
           </Card>
 
+          {autoPaid.length > 0 && (
+            <Card className="p-6">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="font-semibold">Split automatically via Stripe</h2>
+                <span className="text-sm text-[var(--muted-foreground)]">
+                  Total:{" "}
+                  <span className="font-semibold text-[var(--foreground)]">
+                    {formatCurrency(totalAuto)}
+                  </span>
+                </span>
+              </div>
+              <ul className="divide-y divide-[var(--border)]">
+                {autoPaid.map((a) => (
+                  <li
+                    key={a.providerId}
+                    className="flex items-center justify-between py-3 text-sm"
+                  >
+                    <div>
+                      <p className="font-medium">{a.providerName}</p>
+                      <p className="text-[var(--muted-foreground)]">
+                        {a.visitCount} visit{a.visitCount > 1 ? "s" : ""} · paid
+                        out by Stripe
+                      </p>
+                    </div>
+                    <span className="font-medium text-[var(--primary)]">
+                      {formatCurrency(a.amountCents)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+
           <Card className="p-6">
-            <h2 className="mb-4 font-semibold">Payout history</h2>
+            <h2 className="mb-4 font-semibold">Manual payout history</h2>
             {history.length === 0 ? (
               <p className="text-sm text-[var(--muted-foreground)]">
-                No payouts yet.
+                No manual payouts yet.
               </p>
             ) : (
               <ul className="divide-y divide-[var(--border)]">
@@ -216,5 +306,13 @@ export default function AdminPayoutsPage() {
         </>
       )}
     </div>
+  );
+}
+
+function PayoutModeBadge({ mode }: { mode: PayoutMode }) {
+  return mode === "stripe" ? (
+    <Badge variant="success">Auto (Stripe)</Badge>
+  ) : (
+    <Badge variant="warning">Manual</Badge>
   );
 }

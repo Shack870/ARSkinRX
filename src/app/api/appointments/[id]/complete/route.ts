@@ -3,6 +3,7 @@ import { adminDb } from "@/lib/firebase/admin";
 import { COLLECTIONS } from "@/lib/firebase/collections";
 import { verifyBearer } from "@/lib/api-auth";
 import { freeProvider } from "@/lib/live-server";
+import { transferLiveVisitShare } from "@/lib/connect-server";
 import { sendEmail, visitSummaryEmail } from "@/lib/notify";
 import { resolvePrefs } from "@/lib/notifications";
 import { getService } from "@/lib/services";
@@ -57,9 +58,16 @@ export async function POST(
 
   await batch.commit();
 
-  // Free the nurse to take the next real-time visit.
+  // Free the nurse to take the next real-time visit, and send them their share
+  // via Stripe Connect if they've onboarded (otherwise it stays owed manually).
   if (a.isLive) {
     await freeProvider(a.providerId);
+    try {
+      await transferLiveVisitShare(id);
+    } catch (err) {
+      // Leave the visit as manually owed; admin payouts will pick it up.
+      console.error("[appointments/complete] live transfer failed", err);
+    }
   }
 
   // Email the patient their visit summary (best effort, respects email prefs).

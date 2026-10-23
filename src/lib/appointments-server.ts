@@ -8,13 +8,20 @@ import { sendEmail, sendSms, bookingConfirmedEmail } from "@/lib/notify";
 import { resolvePrefs } from "@/lib/notifications";
 import { formatDateTime } from "@/lib/datetime";
 import { formatCurrency } from "@/lib/utils";
-import type { ServiceType } from "@/lib/types";
+import type { PayoutVia, ServiceType } from "@/lib/types";
 
 interface ConfirmPaymentInfo {
   stripePaymentIntentId?: string;
   stripeChargeId?: string;
   amountCents: number;
-  platformFeeCents: number;
+  /** Defaults to the fee recorded on the appointment when omitted. */
+  platformFeeCents?: number;
+  /**
+   * "stripe" when the charge used transfer_data to the nurse's Connect account
+   * (their share is already theirs — nothing to pay manually). Defaults to
+   * "manual".
+   */
+  payoutVia?: PayoutVia;
   dev?: boolean;
 }
 
@@ -113,6 +120,8 @@ export async function confirmAppointmentBooked(
   const now = Date.now();
   const videoRoomId = appt.videoRoomId ?? randomUUID();
   const paymentRef = adminDb.collection(COLLECTIONS.payments).doc();
+  const platformFeeCents = payment.platformFeeCents ?? appt.platformFeeCents ?? 0;
+  const payoutVia: PayoutVia = payment.payoutVia ?? "manual";
 
   const batch = adminDb.batch();
   batch.update(apptRef, {
@@ -120,6 +129,7 @@ export async function confirmAppointmentBooked(
     videoRoomId,
     paymentId: paymentRef.id,
     stripePaymentIntentId: payment.stripePaymentIntentId ?? null,
+    payoutVia,
     holdExpiresAt: null,
     updatedAt: now,
   });
@@ -129,7 +139,8 @@ export async function confirmAppointmentBooked(
     clientId: appt.clientId,
     providerId: appt.providerId,
     amountCents: payment.amountCents,
-    platformFeeCents: payment.platformFeeCents,
+    platformFeeCents,
+    payoutVia,
     currency: "usd",
     stripePaymentIntentId: payment.stripePaymentIntentId ?? `dev_${appointmentId}`,
     stripeChargeId: payment.stripeChargeId ?? null,

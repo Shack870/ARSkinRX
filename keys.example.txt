@@ -17,6 +17,8 @@ STRIPE_SECRET_KEY=
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
 # Webhook signing secret (Stripe → Developers → Webhooks → your endpoint).
 STRIPE_WEBHOOK_SECRET=
+# Signing secret for the Connect webhook endpoint (connected-account events).
+STRIPE_CONNECT_WEBHOOK_SECRET=
 
 # ── Email ──  use ONE of these. SendGrid: app.sendgrid.com/settings/api_keys
 SENDGRID_API_KEY=

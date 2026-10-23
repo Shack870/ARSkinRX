@@ -21,6 +21,7 @@ const prod = process.argv.includes("--prod");
 const SPECS = {
   STRIPE_SECRET_KEY: "secret",
   STRIPE_WEBHOOK_SECRET: "secret",
+  STRIPE_CONNECT_WEBHOOK_SECRET: "secret",
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: "public",
   SENDGRID_API_KEY: "secret",
   RESEND_API_KEY: "secret",

@@ -98,6 +98,9 @@ env:
   - variable: STRIPE_WEBHOOK_SECRET
     secret: STRIPE_WEBHOOK_SECRET
     availability: [RUNTIME]
+  - variable: STRIPE_CONNECT_WEBHOOK_SECRET
+    secret: STRIPE_CONNECT_WEBHOOK_SECRET
+    availability: [RUNTIME]
   - variable: SENDGRID_API_KEY
     secret: SENDGRID_API_KEY
     availability: [RUNTIME]
