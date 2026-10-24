@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ClipboardList, Video, FileCheck } from "lucide-react";
+import { ClipboardList, Video, FileCheck, Pill } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { ServiceCard } from "@/components/service-card";
@@ -13,18 +13,21 @@ import { formatCurrency } from "@/lib/utils";
 const EXPECT = [
   {
     icon: ClipboardList,
+    color: "bg-[var(--tint-violet-fg)]",
     title: "Share your story",
     body: "Answer a few quick questions about your concern and history.",
   },
   {
     icon: Video,
+    color: "bg-[var(--primary)]",
     title: "Meet your provider",
     body: "Connect by video with a licensed Arkansas nurse practitioner.",
   },
   {
     icon: FileCheck,
+    color: "bg-[var(--gold)]",
     title: "Get your plan",
-    body: "Receive a personalized treatment plan and prescriptions if appropriate.",
+    body: "Receive a personalized treatment plan — and when a prescription is part of it, it's sent to your pharmacy, included in your visit price.",
   },
 ];
 
@@ -60,11 +63,11 @@ export default async function ServicePage({
   const faqs = [
     {
       q: `How much is a ${service.name.toLowerCase()} visit?`,
-      a: `${formatCurrency(service.defaultPriceCents)} for a ${service.durationMinutes}-minute video visit, paid securely at booking.`,
+      a: `${formatCurrency(service.defaultPriceCents)} for a ${service.durationMinutes}-minute live video visit with your nurse practitioner, paid securely at booking. The price includes any prescription your provider writes — there's no separate prescribing fee.`,
     },
     {
-      q: "Can I get a prescription for this?",
-      a: "If your provider determines it's appropriate, yes. Prescriptions are at their clinical judgment. We do not prescribe controlled substances online.",
+      q: "Is a prescription included?",
+      a: `Yes. ${service.name} is typically managed with prescription therapy, so most patients leave their visit with one — and it's included in the visit price, sent straight to your pharmacy. What's prescribed is your provider's clinical decision; we don't prescribe controlled substances online, and medication cost at the pharmacy is separate.`,
     },
     {
       q: "Who will I see?",
@@ -82,10 +85,15 @@ export default async function ServicePage({
       <main className="flex-1">
         <section className="bg-gradient-to-b from-[var(--primary-soft)] to-[var(--background)]">
           <div className="mx-auto max-w-3xl px-4 py-16 text-center">
-            <p className="text-sm font-medium text-[var(--primary)]">
-              {formatCurrency(service.defaultPriceCents)} ·{" "}
-              {service.durationMinutes} min video visit
-            </p>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <p className="text-sm font-medium text-[var(--primary)]">
+                {formatCurrency(service.defaultPriceCents)} ·{" "}
+                {service.durationMinutes} min live video visit
+              </p>
+              <span className="arx-rx-pill">
+                <Pill className="h-3.5 w-3.5" /> Prescription included
+              </span>
+            </div>
             <h1 className="mt-3 text-4xl font-semibold tracking-tight md:text-5xl">
               {service.name}
             </h1>
@@ -102,7 +110,7 @@ export default async function ServicePage({
         </section>
 
         {/* What to expect */}
-        <section className="bg-[var(--muted)] py-16">
+        <section className="arx-wash py-16">
           <div className="mx-auto max-w-5xl px-4">
             <h2 className="mb-10 text-center text-2xl font-semibold tracking-tight">
               What to expect
@@ -110,7 +118,9 @@ export default async function ServicePage({
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
               {EXPECT.map((e, i) => (
                 <div key={e.title}>
-                  <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-[var(--primary)] text-[var(--primary-foreground)]">
+                  <div
+                    className={`mb-3 flex h-11 w-11 items-center justify-center rounded-full text-white shadow-md ${e.color}`}
+                  >
                     <e.icon className="h-5 w-5" />
                   </div>
                   <div className="text-xs font-semibold uppercase tracking-wide text-[var(--primary)]">

@@ -8,6 +8,7 @@ import {
   Sprout,
   Footprints,
   Leaf,
+  Pill,
   type LucideIcon,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -40,24 +41,33 @@ const TINTS: Record<string, string> = {
 export function ServiceCard({ service }: { service: ServiceDefinition }) {
   const Icon = ICONS[service.icon] ?? Sparkles;
   const tint = TINTS[service.id] ?? "tint-teal";
+  const bar = `var(--${tint}-fg)`;
   return (
     <Link href={`/book?service=${service.slug}`} className="group">
-      <Card className="h-full p-5 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:arx-glow">
-        <div
-          className={`mb-4 flex h-11 w-11 items-center justify-center rounded-[var(--radius-md)] ${tint}`}
-        >
-          <Icon className="h-5 w-5" />
+      <Card
+        style={{ ["--bar" as string]: bar }}
+        className="arx-bar h-full p-5 pt-6 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:arx-glow"
+      >
+        <div className="mb-4 flex items-start justify-between">
+          <div
+            className={`flex h-11 w-11 items-center justify-center rounded-[var(--radius-md)] ${tint}`}
+          >
+            <Icon className="h-5 w-5" />
+          </div>
+          <span className="arx-rx-pill">
+            <Pill className="h-3 w-3" /> Rx included
+          </span>
         </div>
         <h3 className="font-semibold tracking-tight">{service.name}</h3>
         <p className="mt-1 text-sm text-[var(--muted-foreground)]">
           {service.shortDescription}
         </p>
         <div className="mt-4 flex items-center justify-between text-sm">
-          <span className="font-medium text-[var(--primary)]">
+          <span className="font-semibold text-[var(--primary)]">
             {formatCurrency(service.defaultPriceCents)}
           </span>
           <span className="text-[var(--muted-foreground)]">
-            {service.durationMinutes} min visit
+            {service.durationMinutes} min video visit
           </span>
         </div>
       </Card>

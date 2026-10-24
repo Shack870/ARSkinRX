@@ -4,7 +4,7 @@ import * as React from "react";
 import { Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, ArrowRight, Loader2, Star } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2, Pill, Star } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -434,9 +434,13 @@ function BookInner() {
             {/* Step 0: Service */}
             {step === 0 && (
               <div>
-                <h2 className="mb-4 text-lg font-semibold">
+                <h2 className="mb-1 text-lg font-semibold">
                   What can we help with?
                 </h2>
+                <p className="mb-4 flex items-center gap-1.5 text-sm text-[var(--muted-foreground)]">
+                  <Pill className="h-3.5 w-3.5 text-[var(--tint-gold-fg)]" />
+                  Every price includes the live video visit and your prescription.
+                </p>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   {catalog
                     .filter((s) => s.enabled !== false)
@@ -886,6 +890,19 @@ function BookInner() {
                     />
                   </div>
                 </dl>
+                <div className="arx-rx-band mt-3 flex items-start gap-3 rounded-[var(--radius-md)] border border-[color-mix(in_srgb,var(--gold)_35%,transparent)] p-3 text-sm">
+                  <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--gold)] text-white">
+                    <Pill className="h-3.5 w-3.5" />
+                  </span>
+                  <p>
+                    <span className="font-medium">Prescription included.</span>{" "}
+                    <span className="text-[var(--muted-foreground)]">
+                      Your total covers the live video visit and any
+                      prescription your provider writes — sent to your pharmacy
+                      at no extra charge.
+                    </span>
+                  </p>
+                </div>
                 <p className="mt-4 text-xs text-[var(--muted-foreground)]">
                   By booking you agree to our{" "}
                   <Link href="/legal/terms" className="underline" target="_blank">

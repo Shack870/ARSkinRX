@@ -13,7 +13,7 @@ export function SiteFooter() {
               <span className="font-semibold">ARSkinRX</span>
             </div>
             <p className="mt-3 text-sm text-[var(--muted-foreground)]">
-              Virtual skin care from licensed Arkansas nurse practitioners.
+              Live video skin care from licensed Arkansas nurse practitioners — prescription included in every visit price.
               Founded by B. Crystal Shackelford, APRN.
             </p>
           </div>

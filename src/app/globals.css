@@ -32,6 +32,9 @@
   --tint-emerald-fg: #2f7d5b;
   --tint-rose: #f6e7e2;
   --tint-rose-fg: #b06a57;
+  --tint-gold: #fbf1d6;
+  --tint-gold-fg: #9a6b12;
+  --gold: #d6a73a;
 }
 
 @theme inline {
@@ -154,4 +157,62 @@ body {
 .tint-rose {
   background: var(--tint-rose);
   color: var(--tint-rose-fg);
+}
+.tint-gold {
+  background: var(--tint-gold);
+  color: var(--tint-gold-fg);
+}
+
+/* Colored top bar for cards — pass a tint var via --bar. */
+.arx-bar {
+  position: relative;
+  overflow: hidden;
+}
+.arx-bar::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  background: var(--bar, var(--primary));
+}
+
+/* "Prescription included" warm gradient surfaces. */
+.arx-rx-band {
+  background: linear-gradient(
+    120deg,
+    var(--tint-gold) 0%,
+    var(--accent-soft) 50%,
+    var(--tint-rose) 100%
+  );
+}
+.arx-rx-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: 9999px;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--tint-gold-fg);
+  background: var(--tint-gold);
+  border: 1px solid color-mix(in srgb, var(--gold) 45%, transparent);
+}
+
+/* Section band with a soft multi-stop wash. */
+.arx-wash {
+  background-color: var(--muted);
+  background-image:
+    radial-gradient(
+      color-mix(in srgb, var(--primary) 16%, transparent) 1px,
+      transparent 1px
+    ),
+    radial-gradient(60% 80% at 10% 0%, var(--tint-violet) 0%, transparent 60%),
+    radial-gradient(50% 70% at 95% 10%, var(--tint-sky) 0%, transparent 60%),
+    radial-gradient(60% 60% at 50% 100%, var(--tint-emerald) 0%, transparent 60%);
+  background-size:
+    22px 22px,
+    auto,
+    auto,
+    auto;
 }

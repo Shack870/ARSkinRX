@@ -137,7 +137,8 @@ export function bookingConfirmedEmail(opts: {
       ${
         opts.amountText
           ? `<p style="background:#f1efe9;padding:12px 14px;border-radius:8px">
-               <strong>Receipt:</strong> ${opts.amountText} paid · ${opts.serviceName}
+               <strong>Receipt:</strong> ${opts.amountText} paid · ${opts.serviceName}<br>
+               <span style="color:#5d6b67;font-size:13px">Covers your live video visit and any prescription your provider writes — sent to your pharmacy at no extra charge.</span>
              </p>`
           : ""
       }

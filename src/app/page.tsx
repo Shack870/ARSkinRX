@@ -8,6 +8,8 @@ import {
   Clock,
   Lock,
   BadgeCheck,
+  Pill,
+  Sparkles,
 } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
@@ -19,20 +21,30 @@ import { SERVICES } from "@/lib/services";
 
 const BENEFITS = [
   {
+    icon: Pill,
+    tint: "tint-gold",
+    bar: "var(--gold)",
+    title: "Prescription included",
+    body: "If treatment calls for a prescription — and for most skin concerns it does — it's sent to your pharmacy at no extra cost.",
+  },
+  {
     icon: BadgeCheck,
     tint: "tint-teal",
+    bar: "var(--primary)",
     title: "Licensed Arkansas APRNs",
     body: "Care from nurse practitioners with independent practice authority.",
   },
   {
     icon: Clock,
-    tint: "tint-amber",
+    tint: "tint-sky",
+    bar: "var(--tint-sky-fg)",
     title: "Visits in minutes",
     body: "No waiting rooms. Book a 15-minute video visit at a time that works.",
   },
   {
     icon: Lock,
     tint: "tint-violet",
+    bar: "var(--tint-violet-fg)",
     title: "Private & secure",
     body: "Encrypted, HIPAA-minded, and your video visit is never recorded.",
   },
@@ -45,11 +57,11 @@ const FAQS = [
   },
   {
     q: "What happens during a visit?",
-    a: "You'll meet your provider on a private video call. They'll review your concern and intake answers, discuss a plan, and prescribe treatment when appropriate.",
+    a: "You'll meet your provider on a private video call. They'll review your concern and intake answers, talk through a plan, and — when treatment calls for it — send a prescription straight to your pharmacy.",
   },
   {
-    q: "Will I get a prescription?",
-    a: "If your provider determines it's appropriate, yes. Prescriptions are at their clinical judgment. We do not prescribe controlled substances online.",
+    q: "Is a prescription included in the price?",
+    a: "Yes. The visit price covers your consultation and any prescription your provider writes — there's no separate prescribing fee. Most skin, hair, and nail concerns we treat are managed with prescription therapy, so most patients leave with one. What's prescribed is always your provider's clinical decision, and we don't prescribe controlled substances online. Pharmacy charges for the medication itself are separate.",
   },
   {
     q: "What if I miss my appointment?",
@@ -57,30 +69,34 @@ const FAQS = [
   },
   {
     q: "How much does it cost?",
-    a: "Most visits are $69–$79, shown clearly before you pay. You pay securely at booking.",
+    a: "Most visits are $69–$79, shown clearly before you pay, with the prescription included. You pay securely at booking.",
   },
 ];
 
 const STEPS = [
   {
     icon: ClipboardList,
+    color: "bg-[var(--tint-violet-fg)]",
     title: "Tell us about your skin",
     body: "Pick your concern and answer a few quick questions. Add photos so your provider can prepare.",
   },
   {
     icon: CalendarCheck,
+    color: "bg-[var(--tint-sky-fg)]",
     title: "Choose a time",
     body: "See real openings from Arkansas-licensed nurse practitioners and grab the slot that works for you.",
   },
   {
     icon: CreditCard,
+    color: "bg-[var(--primary)]",
     title: "Pay securely",
-    body: "Checkout with Stripe. Your spot is locked in the moment payment clears.",
+    body: "One price covers the visit and your prescription. Your spot is locked in the moment payment clears.",
   },
   {
     icon: Video,
+    color: "bg-[var(--accent)]",
     title: "Meet by video",
-    body: "Join your private video visit during your appointment window and get your personalized plan.",
+    body: "Join your private video visit and get your personalized plan — prescription sent to your pharmacy when it's part of your treatment.",
   },
 ];
 
@@ -94,18 +110,24 @@ export default function HomePage() {
           <div className="absolute inset-0 -z-10 bg-gradient-to-b from-[var(--primary-soft)] to-[var(--background)]" />
           <div className="arx-blob -left-16 -top-10 h-72 w-72 bg-[#7fc6b6]" />
           <div className="arx-blob -right-10 top-24 h-72 w-72 bg-[#e7b8a8]" />
+          <div className="arx-blob left-1/2 top-64 h-64 w-64 -translate-x-1/2 bg-[#f1d58a]" />
           <div className="mx-auto max-w-6xl px-4 py-20 text-center md:py-28">
-            <span className="inline-flex items-center rounded-full border border-[var(--border)] bg-[var(--card)] px-3 py-1 text-xs font-medium text-[var(--muted-foreground)]">
-              Licensed in Arkansas · Independent Practice Authority
-            </span>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <span className="inline-flex items-center rounded-full border border-[var(--border)] bg-[var(--card)] px-3 py-1 text-xs font-medium text-[var(--muted-foreground)]">
+                Licensed in Arkansas · Independent Practice Authority
+              </span>
+              <span className="arx-rx-pill">
+                <Pill className="h-3.5 w-3.5" /> Prescription included
+              </span>
+            </div>
             <h1 className="mx-auto mt-6 max-w-3xl text-4xl font-semibold tracking-tight md:text-6xl">
               Prescription skin care,{" "}
               <span className="arx-gradient-text">from your phone.</span>
             </h1>
             <p className="mx-auto mt-5 max-w-xl text-lg text-[var(--muted-foreground)]">
-              Meet by video with an Arkansas nurse practitioner for acne,
-              anti-aging, rosacea, hair, nail health, and more. Book, pay, and
-              connect — all online.
+              A live video visit with an Arkansas nurse practitioner for acne,
+              anti-aging, rosacea, hair, nail health, and more. One price
+              covers the consultation <em>and</em> your prescription.
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link href="/book">
@@ -126,11 +148,12 @@ export default function HomePage() {
 
         {/* Benefits */}
         <section className="mx-auto max-w-6xl px-4 py-12">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {BENEFITS.map((b) => (
               <div
                 key={b.title}
-                className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--card)] p-5 transition-all duration-200 hover:-translate-y-0.5 hover:arx-glow"
+                style={{ ["--bar" as string]: b.bar }}
+                className="arx-bar rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--card)] p-5 pt-6 transition-all duration-200 hover:-translate-y-0.5 hover:arx-glow"
               >
                 <div
                   className={`mb-3 flex h-10 w-10 items-center justify-center rounded-[var(--radius-md)] ${b.tint}`}
@@ -163,8 +186,59 @@ export default function HomePage() {
           </div>
         </section>
 
+        {/* What's included */}
+        <section className="mx-auto max-w-6xl px-4 pb-4">
+          <div className="arx-rx-band relative overflow-hidden rounded-[var(--radius-lg)] border border-[color-mix(in_srgb,var(--gold)_35%,transparent)] p-8 md:p-10">
+            <Sparkles className="absolute -right-6 -top-6 h-32 w-32 text-[var(--gold)] opacity-20" />
+            <div className="grid gap-8 md:grid-cols-[1.2fr_1fr] md:items-center">
+              <div>
+                <span className="arx-rx-pill">
+                  <Pill className="h-3.5 w-3.5" /> One price. Everything included.
+                </span>
+                <h2 className="mt-4 text-2xl font-semibold tracking-tight md:text-3xl">
+                  Your visit price covers the consultation{" "}
+                  <span className="text-[var(--tint-gold-fg)]">and</span> the
+                  prescription.
+                </h2>
+                <p className="mt-3 max-w-xl text-[var(--muted-foreground)]">
+                  Nearly every concern we treat — acne, rosacea, pigmentation,
+                  aging skin, hair loss, nail fungus, eczema — is managed with
+                  prescription therapy. When your provider prescribes, it goes
+                  straight to your pharmacy. No prescribing fee, no upsell.
+                </p>
+              </div>
+              <ul className="grid gap-3 text-sm">
+                {[
+                  ["Live video consultation", "15 minutes, one-on-one with an Arkansas APRN"],
+                  ["Prescription sent to your pharmacy", "Included whenever it's part of your plan"],
+                  ["Written treatment plan", "In your dashboard right after the visit"],
+                  ["Free reschedule", "Life happens — move your visit once at no charge"],
+                ].map(([t, d]) => (
+                  <li
+                    key={t}
+                    className="flex items-start gap-3 rounded-[var(--radius-md)] bg-[var(--card)]/80 p-3 backdrop-blur"
+                  >
+                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--gold)] text-white">
+                      <BadgeCheck className="h-3.5 w-3.5" />
+                    </span>
+                    <span>
+                      <span className="block font-medium">{t}</span>
+                      <span className="text-[var(--muted-foreground)]">{d}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <p className="mt-6 text-xs text-[var(--muted-foreground)]">
+              Prescriptions are at your provider&apos;s clinical judgment. We
+              don&apos;t prescribe controlled substances online. Medication cost
+              at the pharmacy is separate.
+            </p>
+          </div>
+        </section>
+
         {/* How it works */}
-        <section id="how-it-works" className="arx-dot-grid bg-[var(--muted)] py-16">
+        <section id="how-it-works" className="arx-wash py-16">
           <div className="mx-auto max-w-6xl px-4">
             <div className="mb-10 text-center">
               <h2 className="text-3xl font-semibold tracking-tight">
@@ -177,7 +251,9 @@ export default function HomePage() {
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
               {STEPS.map((step, i) => (
                 <div key={step.title} className="relative">
-                  <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-[var(--primary)] text-[var(--primary-foreground)]">
+                  <div
+                    className={`mb-4 flex h-11 w-11 items-center justify-center rounded-full text-white shadow-md ${step.color}`}
+                  >
                     <step.icon className="h-5 w-5" />
                   </div>
                   <div className="text-xs font-semibold uppercase tracking-wide text-[var(--primary)]">
