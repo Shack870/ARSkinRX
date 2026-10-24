@@ -182,7 +182,7 @@ function Detail({ id }: { id: string }) {
           <h2 className="mt-3 font-semibold">You&apos;re all set</h2>
           <p className="mt-1 text-sm text-[var(--muted-foreground)]">
             Your visit starts {formatDate(appointment.start)} at{" "}
-            {formatTime(appointment.start)}. The Join button appears 5 minutes
+            {formatTime(appointment.start)}. Your waiting room opens 5 minutes
             before.
           </p>
           <Countdown to={appointment.start - 5 * 60 * 1000} now={now} />
@@ -196,14 +196,16 @@ function Detail({ id }: { id: string }) {
         <Card className="border-[var(--primary)] bg-[var(--primary-soft)] p-6 text-center">
           <Video className="mx-auto h-9 w-9 text-[var(--primary)]" />
           <h2 className="mt-3 font-semibold text-[var(--primary)]">
-            Your provider is ready for you
+            Your waiting room is open
           </h2>
           <p className="mt-1 text-sm text-[var(--primary)]/80">
-            Your visit window is open until {formatTime(appointment.end)}.
+            Enter now and your nurse will join you. Your window is held open
+            until {formatTime(appointment.end)} — missed visits aren&apos;t
+            refunded.
           </p>
           <Link href={`/visit/${appointment.id}`} className="mt-4 inline-block">
             <Button size="lg">
-              <Video className="h-4 w-4" /> Join video visit
+              <Video className="h-4 w-4" /> Enter waiting room
             </Button>
           </Link>
         </Card>

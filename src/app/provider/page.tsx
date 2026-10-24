@@ -21,6 +21,7 @@ import { formatCurrency } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { WaitingBadge } from "@/components/visit/waiting-badge";
 import { GoLiveToggle } from "@/components/live/go-live-toggle";
 import { LiveBadge } from "@/components/live/live-badge";
 import { PayoutSetupCard } from "@/components/provider/payout-setup-card";
@@ -203,11 +204,14 @@ function AppointmentRow({ appt }: { appt: Appointment }) {
       <div className="flex items-center gap-3">
         <StatusBadge appt={appt} />
         {joinable && appt.status !== "completed" && (
-          <Link href={`/visit/${appt.id}`}>
-            <Button size="sm">
-              <Video className="h-4 w-4" /> Join
-            </Button>
-          </Link>
+          <>
+            <WaitingBadge appointmentId={appt.id} peer="client" />
+            <Link href={`/visit/${appt.id}`}>
+              <Button size="sm">
+                <Video className="h-4 w-4" /> Enter room
+              </Button>
+            </Link>
+          </>
         )}
       </div>
     </li>

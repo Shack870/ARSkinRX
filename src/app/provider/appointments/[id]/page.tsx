@@ -19,6 +19,7 @@ import { useToast } from "@/components/ui/toast";
 import { useConfirm } from "@/components/ui/confirm";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { WaitingBadge } from "@/components/visit/waiting-badge";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -171,11 +172,14 @@ export default function ProviderAppointmentDetail({
               {appointment.status.replace("_", " ")}
             </Badge>
             {joinable && (
-              <Link href={`/visit/${appointment.id}`}>
-                <Button size="sm">
-                  <Video className="h-4 w-4" /> Join
-                </Button>
-              </Link>
+              <>
+                <WaitingBadge appointmentId={appointment.id} peer="client" />
+                <Link href={`/visit/${appointment.id}`}>
+                  <Button size="sm">
+                    <Video className="h-4 w-4" /> Enter room
+                  </Button>
+                </Link>
+              </>
             )}
           </div>
         </div>

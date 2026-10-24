@@ -4,12 +4,24 @@ import * as React from "react";
 import { use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { Clock, Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useAppointment } from "@/lib/hooks";
-import { isJoinable } from "@/lib/appointment-window";
+import { JOIN_EARLY_MS, windowState } from "@/lib/appointment-window";
+import { formatTime, formatRelativeDay } from "@/lib/datetime";
+import { Lobby } from "@/components/visit/lobby";
 import { VideoRoom } from "@/components/visit/video-room";
 import { Button } from "@/components/ui/button";
+
+function mmss(ms: number) {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  const m = Math.floor(s / 60);
+  if (m >= 60) {
+    const h = Math.floor(m / 60);
+    return `${h}h ${m % 60}m`;
+  }
+  return `${m}:${String(s % 60).padStart(2, "0")}`;
+}
 
 export default function VisitPage({
   params,
@@ -18,14 +30,22 @@ export default function VisitPage({
 }) {
   const { id } = use(params);
   const router = useRouter();
-  const { user, role, loading: authLoading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { appointment, loading } = useAppointment(id);
+  const [stream, setStream] = React.useState<MediaStream | null>(null);
+  const [now, setNow] = React.useState(() => Date.now());
 
   React.useEffect(() => {
     if (!authLoading && !user) {
       router.replace(`/login?next=${encodeURIComponent(`/visit/${id}`)}`);
     }
   }, [authLoading, user, router, id]);
+
+  // Tick so the "opens in" countdown flips to the lobby on its own.
+  React.useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
 
   if (authLoading || loading || !user) {
     return (
@@ -48,8 +68,8 @@ export default function VisitPage({
     );
   }
 
-  const isParticipant =
-    appointment.clientId === user.uid || appointment.providerId === user.uid;
+  const isProviderSide = appointment.providerId === user.uid;
+  const isParticipant = appointment.clientId === user.uid || isProviderSide;
   if (!isParticipant) {
     return (
       <Centered>
@@ -58,16 +78,26 @@ export default function VisitPage({
     );
   }
 
-  if (!isJoinable(appointment)) {
-    const backHref =
-      role === "provider"
-        ? "/provider/schedule"
-        : `/dashboard/appointments/${id}`;
+  const callRole = isProviderSide ? "provider" : "client";
+  const backHref = isProviderSide
+    ? "/provider/schedule"
+    : `/dashboard/appointments/${id}`;
+  const state = windowState(appointment, now);
+
+  if (state === "future") {
+    const opensAt = appointment.start - JOIN_EARLY_MS;
     return (
       <Centered>
-        <p className="max-w-sm text-center">
-          This visit isn&apos;t open right now. You can join starting 5 minutes
-          before the scheduled time.
+        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--primary)]/20 text-[var(--primary)]">
+          <Clock className="h-5 w-5" />
+        </span>
+        <p className="mt-2 text-lg font-semibold">
+          Your waiting room opens in {mmss(opensAt - now)}
+        </p>
+        <p className="max-w-sm text-center text-sm text-neutral-400">
+          Visit is {formatRelativeDay(appointment.start)} at{" "}
+          {formatTime(appointment.start)}. You can enter 5 minutes early — this
+          page will open on its own.
         </p>
         <Link href={backHref}>
           <Button variant="outline" className="mt-4">
@@ -78,7 +108,37 @@ export default function VisitPage({
     );
   }
 
-  return <VideoRoom appointment={appointment} role={role ?? "client"} />;
+  if (state === "ended" || state === "done") {
+    return (
+      <Centered>
+        <p className="max-w-sm text-center">
+          {state === "done"
+            ? "This visit is closed."
+            : "This visit window has ended."}
+        </p>
+        <Link href={backHref}>
+          <Button variant="outline" className="mt-4">
+            Back
+          </Button>
+        </Link>
+      </Centered>
+    );
+  }
+
+  if (!stream) {
+    return (
+      <Lobby
+        appointment={appointment}
+        role={callRole}
+        backHref={backHref}
+        onEnter={setStream}
+      />
+    );
+  }
+
+  return (
+    <VideoRoom appointment={appointment} role={callRole} initialStream={stream} />
+  );
 }
 
 function Centered({ children }: { children: React.ReactNode }) {

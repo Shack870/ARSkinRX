@@ -16,6 +16,7 @@ import { isJoinable, needsReschedule, JOIN_EARLY_MS } from "@/lib/appointment-wi
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { WaitingBadge } from "@/components/visit/waiting-badge";
 import { SkeletonRows } from "@/components/ui/skeleton";
 import { VerifyEmailBanner } from "@/components/verify-email-banner";
 import { FinishAccountCard } from "@/components/finish-account-card";
@@ -144,11 +145,14 @@ function NextVisitHero({ appt, now }: { appt: Appointment; now: number }) {
             </p>
           </div>
           {joinable ? (
-            <Link href={`/visit/${appt.id}`}>
-              <Button variant="accent" size="lg">
-                <Video className="h-4 w-4" /> Join now
-              </Button>
-            </Link>
+            <div className="flex flex-col items-end gap-2">
+              <WaitingBadge appointmentId={appt.id} peer="provider" />
+              <Link href={`/visit/${appt.id}`}>
+                <Button variant="accent" size="lg">
+                  <Video className="h-4 w-4" /> Enter waiting room
+                </Button>
+              </Link>
+            </div>
           ) : (
             <div className="text-right">
               <p className="text-xs text-[var(--primary-soft)]">Join opens in</p>
