@@ -5,7 +5,8 @@
       "namespace": "android_app",
       "package_name": "com.arskinrx.app",
       "sha256_cert_fingerprints": [
-        "92:1A:44:32:9B:FD:98:87:B3:16:C7:5F:5F:0D:1D:6F:0A:F6:10:61:03:0A:4F:9F:FF:66:A9:F9:BD:6C:7D:93"
+        "92:1A:44:32:9B:FD:98:87:B3:16:C7:5F:5F:0D:1D:6F:0A:F6:10:61:03:0A:4F:9F:FF:66:A9:F9:BD:6C:7D:93",
+        "79:E1:84:1E:2C:10:E1:5E:07:20:E8:83:E0:97:A4:78:45:1B:CE:0B:AA:17:3C:19:4A:B0:F1:28:47:97:ED:C1"
       ]
     }
   }
