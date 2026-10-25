@@ -54,6 +54,8 @@ export interface UserProfile {
   email: string;
   displayName: string;
   phone?: string;
+  /** Date of birth, ISO date "YYYY-MM-DD". Collected with the password after first payment. */
+  dob?: string;
   role: Role;
   /**
    * Mirror of the additive `admin: true` custom claim. Lets a provider (e.g.
