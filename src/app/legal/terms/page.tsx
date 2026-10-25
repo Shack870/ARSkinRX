@@ -34,14 +34,28 @@ export default function TermsPage() {
         <p>
           If you miss your appointment window, you may reschedule once at no
           additional charge. To reschedule, use the link in your dashboard.
+          Missed visits are not refunded.
         </p>
       </LegalSection>
-      <LegalSection heading="5. Refund policy">
+      <LegalSection heading="5. Cancellation & refund policy">
         <p>
-          Refunds are not available within 48 hours of a scheduled visit.
-          Outside of that window, refund requests are handled on a case-by-case
-          basis. Missed visits are eligible for a free reschedule rather than a
-          refund.
+          <strong>Scheduled visits.</strong> Cancel at least 24 hours before
+          your visit and you receive a full refund to your original payment
+          method. Cancellations made less than 24 hours before the visit, and
+          missed visits, are not refunded; a missed visit may instead be
+          rescheduled once for free as described above. If your provider
+          cancels, you are refunded in full.
+        </p>
+        <p>
+          <strong>No-Wait Live visits.</strong> If you pay for a live visit and
+          are never seen by a provider, you are refunded in full. If the
+          projected wait is 30 minutes or more and you choose to schedule a
+          visit instead, you receive a $20 refund and the remainder is applied
+          to your scheduled visit.
+        </p>
+        <p>
+          Refunds are issued automatically when they apply and typically appear
+          on your statement within 5–10 business days.
         </p>
       </LegalSection>
       <LegalSection heading="6. Prescriptions">

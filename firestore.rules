@@ -101,6 +101,19 @@ service cloud.firestore {
         isAdmin()
       );
       allow write: if isProvider() || isAdmin();
+
+      // Amendment log: prior versions of the note, written only by the server
+      // (PATCH /api/appointments/[id]/notes). Readable by the provider on the
+      // visit and admins.
+      match /history/{entryId} {
+        function note() {
+          return get(/databases/$(database)/documents/visitNotes/$(appointmentId)).data;
+        }
+        allow read: if isSignedIn() && (
+          note().providerId == request.auth.uid || isAdmin()
+        );
+        allow write: if false;
+      }
     }
 
     // WebRTC signaling. Only the two participants of the appointment (the

@@ -4,12 +4,15 @@ import * as React from "react";
 import { use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { doc, setDoc } from "firebase/firestore";
-import { ArrowLeft, Loader2, Save, User, Video, XCircle } from "lucide-react";
-import { db } from "@/lib/firebase/client";
-import { COLLECTIONS } from "@/lib/firebase/collections";
+import { ArrowLeft, History, Loader2, User, Video, XCircle } from "lucide-react";
 import { authedFetch } from "@/lib/api-client";
-import { useAppointment, useIntake, useUserProfile, useVisitNote } from "@/lib/hooks";
+import {
+  useAppointment,
+  useIntake,
+  useUserProfile,
+  useVisitNote,
+  useVisitNoteHistory,
+} from "@/lib/hooks";
 import { SERVICE_MAP } from "@/lib/services";
 import { formatDate, formatDateTime } from "@/lib/datetime";
 import { formatCurrency } from "@/lib/utils";
@@ -21,11 +24,10 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { WaitingBadge } from "@/components/visit/waiting-badge";
 import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { IntakeSummary } from "@/components/intake-summary";
 import { IntakePhotos } from "@/components/intake-photos";
 import { LiveBadge } from "@/components/live/live-badge";
+import { SoapNoteEditor } from "@/app/provider/patients/_components/soap-note-editor";
 
 export default function ProviderAppointmentDetail({
   params,
@@ -37,23 +39,18 @@ export default function ProviderAppointmentDetail({
   const toast = useToast();
   const confirm = useConfirm();
   const [cancelling, setCancelling] = React.useState(false);
+  // Captured once per mount; good enough to decide whether cancel is offered.
+  const [now] = React.useState(() => Date.now());
   const { appointment, loading } = useAppointment(id);
   const { profile: patient } = useUserProfile(appointment?.clientId);
   const { intake } = useIntake(appointment?.intakeId);
-  const { note } = useVisitNote(id);
+  const { note, loading: noteLoading } = useVisitNote(id);
+  const { history: noteHistory } = useVisitNoteHistory(id);
 
-  const [notes, setNotes] = React.useState({
-    subjective: "",
-    assessment: "",
-    plan: "",
-    prescribed: "",
-  });
-  const [saving, setSaving] = React.useState(false);
   const [history, setHistory] = React.useState<{
     pastVisitCount: number;
     visits: { appointmentId: string; serviceId: ServiceType; start: number; providerName: string }[];
   } | null>(null);
-  const hydrated = React.useRef(false);
 
   React.useEffect(() => {
     authedFetch(`/api/appointments/${id}/patient-history`)
@@ -61,41 +58,6 @@ export default function ProviderAppointmentDetail({
       .then((d) => setHistory(d))
       .catch(() => {});
   }, [id]);
-
-  React.useEffect(() => {
-    if (hydrated.current || !note) return;
-    setNotes({
-      subjective: note.subjective ?? "",
-      assessment: note.assessment ?? "",
-      plan: note.plan ?? "",
-      prescribed: note.prescribed ?? "",
-    });
-    hydrated.current = true;
-  }, [note]);
-
-  async function saveNotes() {
-    if (!appointment) return;
-    setSaving(true);
-    try {
-      await setDoc(
-        doc(db, COLLECTIONS.visitNotes, appointment.id),
-        {
-          appointmentId: appointment.id,
-          providerId: appointment.providerId,
-          clientId: appointment.clientId,
-          ...notes,
-          updatedAt: Date.now(),
-          createdAt: note?.createdAt ?? Date.now(),
-        },
-        { merge: true },
-      );
-      toast.success("Notes saved");
-    } catch {
-      toast.error("Couldn't save notes");
-    } finally {
-      setSaving(false);
-    }
-  }
 
   if (loading) {
     return (
@@ -119,14 +81,14 @@ export default function ProviderAppointmentDetail({
   const joinable = isJoinable(appointment);
   const cancellable =
     ["booked", "pending_payment"].includes(appointment.status) &&
-    appointment.start > Date.now();
+    appointment.start > now;
 
   async function cancelVisit() {
     if (
       !(await confirm({
         title: "Cancel this visit?",
         message:
-          "The patient will be notified and is eligible for a refund.",
+          "The patient will be notified and refunded in full automatically.",
         confirmLabel: "Cancel visit",
         cancelLabel: "Keep visit",
         destructive: true,
@@ -139,7 +101,13 @@ export default function ProviderAppointmentDetail({
         method: "POST",
       });
       if (!res.ok) throw new Error();
-      toast.success("Visit cancelled", "The patient has been notified.");
+      const d = await res.json().catch(() => ({}));
+      toast.success(
+        "Visit cancelled",
+        d.refunded
+          ? `The patient has been notified and ${formatCurrency(d.refundedCents)} is being refunded.`
+          : "The patient has been notified.",
+      );
       router.push("/provider/schedule");
     } catch {
       toast.error("Couldn't cancel the visit");
@@ -203,9 +171,17 @@ export default function ProviderAppointmentDetail({
       </Card>
 
       <Card className="p-6">
-        <div className="mb-3 flex items-center gap-2">
-          <User className="h-4 w-4 text-[var(--primary)]" />
-          <h2 className="font-semibold">Patient</h2>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <User className="h-4 w-4 text-[var(--primary)]" />
+            <h2 className="font-semibold">Patient</h2>
+          </div>
+          <Link
+            href={`/provider/patients/${appointment.clientId}`}
+            className="inline-flex items-center gap-1 text-sm text-[var(--primary)] hover:underline"
+          >
+            <History className="h-4 w-4" /> View patient history
+          </Link>
         </div>
         <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Field label="Name" value={patient?.displayName} />
@@ -248,20 +224,22 @@ export default function ProviderAppointmentDetail({
       <Card className="p-6">
         <h2 className="font-semibold">Visit notes</h2>
         <p className="mb-4 text-sm text-[var(--muted-foreground)]">
-          Private clinical notes. Saved to the patient record.
+          Private clinical notes. Saved to the patient record; edits to a saved
+          note are kept as amendments.
         </p>
-        <div className="space-y-3">
-          <NoteField label="Subjective" value={notes.subjective} onChange={(v) => setNotes((n) => ({ ...n, subjective: v }))} />
-          <NoteField label="Assessment" value={notes.assessment} onChange={(v) => setNotes((n) => ({ ...n, assessment: v }))} />
-          <NoteField label="Plan" value={notes.plan} onChange={(v) => setNotes((n) => ({ ...n, plan: v }))} />
-          <NoteField label="Prescribed" value={notes.prescribed} onChange={(v) => setNotes((n) => ({ ...n, prescribed: v }))} placeholder="Medications prescribed via your e-prescribe tool" />
-        </div>
-        <div className="mt-4">
-          <Button onClick={saveNotes} disabled={saving}>
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-            Save notes
-          </Button>
-        </div>
+        {noteLoading ? (
+          <div className="flex justify-center py-6">
+            <Loader2 className="h-5 w-5 animate-spin text-[var(--primary)]" />
+          </div>
+        ) : (
+          <SoapNoteEditor
+            key={note?.updatedAt ?? "new"}
+            appointmentId={appointment.id}
+            note={note}
+            history={noteHistory}
+            canEdit
+          />
+        )}
       </Card>
     </div>
   );
@@ -274,30 +252,6 @@ function Field({ label, value }: { label: string; value?: string }) {
         {label}
       </dt>
       <dd className="mt-0.5 text-sm font-medium break-words">{value || "—"}</dd>
-    </div>
-  );
-}
-
-function NoteField({
-  label,
-  value,
-  onChange,
-  placeholder,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-}) {
-  return (
-    <div>
-      <Label>{label}</Label>
-      <Textarea
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="min-h-[70px]"
-      />
     </div>
   );
 }

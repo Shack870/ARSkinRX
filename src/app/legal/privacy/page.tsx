@@ -29,7 +29,9 @@ export default function PrivacyPage() {
         <p>
           Payments are processed by Stripe. We do not store full card numbers,
           and we never share your diagnosis or clinical details with the payment
-          processor.
+          processor. Refunds (for example, when a visit is cancelled at least 24
+          hours in advance) are returned through Stripe to your original payment
+          method.
         </p>
       </LegalSection>
       <LegalSection heading="Your rights">

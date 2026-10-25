@@ -21,6 +21,7 @@ import type {
   ProviderProfile,
   UserProfile,
   VisitNote,
+  VisitNoteHistoryEntry,
 } from "@/lib/types";
 
 export function useLiveRequest(id: string | undefined) {
@@ -252,4 +253,29 @@ export function useProviderAppointments(uid: string | undefined) {
   }, [uid]);
 
   return { appointments, loading };
+}
+
+/**
+ * Prior versions of a visit note (visitNotes/{id}/history), newest first.
+ * Readable by the provider on the visit and admins; written server-side only.
+ */
+export function useVisitNoteHistory(appointmentId: string | undefined) {
+  const [history, setHistory] = React.useState<VisitNoteHistoryEntry[]>([]);
+  const [loading, setLoading] = React.useState(Boolean(appointmentId));
+  React.useEffect(() => {
+    if (!appointmentId) return;
+    return onSnapshot(
+      collection(db, COLLECTIONS.visitNotes, appointmentId, "history"),
+      (snap) => {
+        setHistory(
+          snap.docs
+            .map((d) => ({ ...(d.data() as VisitNoteHistoryEntry), id: d.id }))
+            .sort((a, b) => b.editedAt - a.editedAt),
+        );
+        setLoading(false);
+      },
+      () => setLoading(false),
+    );
+  }, [appointmentId]);
+  return { history, loading };
 }

@@ -190,6 +190,10 @@ export interface Appointment {
   cancelledBy?: Role;
   cancelledAt?: number;
   refundEligible?: boolean;
+  /** Stripe refund id (or a `dev_`/`manual_` marker) once a refund was issued. */
+  refundId?: string;
+  refundedCents?: number;
+  refundedAt?: number;
   /** Soft hold expiry for pending_payment slots (epoch millis). */
   holdExpiresAt?: number;
   /** True for on-demand "No-Wait Live" visits. */
@@ -235,6 +239,10 @@ export interface LiveRequest {
   providerId?: string;
   appointmentId?: string;
   refundEligible?: boolean;
+  /** Stripe refund id (or a `dev_`/`manual_` marker) once a refund was issued. */
+  refundId?: string;
+  refundedCents?: number;
+  refundedAt?: number;
   /** Round-robin offer state: the nurse currently being pinged. */
   offeredTo?: string | null;
   offerExpiresAt?: number | null;
@@ -294,6 +302,69 @@ export interface VisitNote {
   prescribed: string;
   createdAt: number;
   updatedAt: number;
+  /** Who last saved the note (set by the server PATCH route). */
+  updatedBy?: string;
+  updatedByName?: string;
+}
+
+/**
+ * A prior version of a visit note, written to visitNotes/{id}/history when
+ * the note is amended. Server-written only.
+ */
+export interface VisitNoteHistoryEntry {
+  id: string;
+  appointmentId: string;
+  subjective: string;
+  assessment: string;
+  plan: string;
+  prescribed: string;
+  /** When this (now superseded) version was originally saved. */
+  versionSavedAt: number;
+  /** Who replaced this version, and when. */
+  editedBy: string;
+  editedByName: string;
+  editedAt: number;
+  reason?: string;
+}
+
+/** Row in a nurse's patient roster (GET /api/provider/patients). */
+export interface ProviderPatientSummary {
+  uid: string;
+  displayName: string;
+  email: string;
+  phone: string;
+  dob: string | null;
+  age: number | null;
+  visitCount: number;
+  lastVisitAt: number | null;
+  lastServiceId: ServiceType | null;
+}
+
+/** One visit in a patient's history (GET /api/provider/patients/[uid]). */
+export interface ProviderPatientVisit {
+  appointment: Appointment;
+  serviceName: string;
+  providerName: string;
+  /** True when the requester may edit this visit's note (their visit, or admin). */
+  canEdit: boolean;
+  intake: {
+    answers: Record<string, string | string[] | boolean>;
+    photoPaths: string[];
+  } | null;
+  note: VisitNote | null;
+  noteHistory: VisitNoteHistoryEntry[];
+}
+
+export interface ProviderPatientDetail {
+  profile: {
+    uid: string;
+    displayName: string;
+    email: string;
+    phone: string;
+    dob: string | null;
+    age: number | null;
+  };
+  visits: ProviderPatientVisit[];
 }
 
 /** A manual payout to a provider covering one or more completed visits. */

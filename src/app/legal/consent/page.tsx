@@ -35,7 +35,9 @@ export default function ConsentPage() {
         <p>
           You acknowledge that you are located in Arkansas, that the information
           you provide is accurate, and that you may withdraw this consent at any
-          time before your visit.
+          time before your visit. Withdrawing consent by cancelling a scheduled
+          visit at least 24 hours in advance results in a full refund; see our
+          Terms for the complete cancellation and refund policy.
         </p>
       </LegalSection>
     </LegalShell>

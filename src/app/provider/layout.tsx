@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   ShieldCheck,
   UserRound,
+  Users,
   Wallet,
 } from "lucide-react";
 import { DashboardShell, type NavItem } from "@/components/dashboard/dashboard-shell";
@@ -17,6 +18,7 @@ import { useAuth } from "@/lib/auth-context";
 const NAV: NavItem[] = [
   { label: "Overview", href: "/provider", icon: LayoutDashboard },
   { label: "Schedule", href: "/provider/schedule", icon: CalendarRange },
+  { label: "Patients", href: "/provider/patients", icon: Users },
   { label: "Availability", href: "/provider/availability", icon: CalendarClock },
   { label: "Earnings", href: "/provider/earnings", icon: Wallet },
   { label: "Profile", href: "/provider/profile", icon: UserRound },
