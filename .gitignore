@@ -42,3 +42,16 @@ keys.local.txt
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Android (Bubblewrap / TWA) — never commit the keystore or build outputs
+android/*.keystore
+android/*.jks
+android/app/build/
+android/build/
+android/.gradle/
+android/.idea/
+android/local.properties
+android/app-release-*.a*
+android/*.apk
+android/*.aab
+android/*.idsig

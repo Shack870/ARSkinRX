@@ -28,6 +28,7 @@ export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
   manifest: "/manifest.webmanifest",
+  applicationName: "ARSkinRX",
   appleWebApp: {
     capable: true,
     title: "ARSkinRX",
