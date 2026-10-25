@@ -6,6 +6,7 @@ import { getService } from "@/lib/services";
 import { sendEmail, sendSms, reminderEmail } from "@/lib/notify";
 import { resolvePrefs } from "@/lib/notifications";
 import { formatTime, formatDateTime } from "@/lib/datetime";
+import { advanceStaleLiveRequests } from "@/lib/live-server";
 import type { NoShowParty, ServiceType } from "@/lib/types";
 
 const HOUR = 60 * 60 * 1000;
@@ -21,6 +22,8 @@ export interface SweepResult {
   noShows: number;
   reminders: number;
   expiredHolds: number;
+  /** False when the live-queue pass threw (logged); the rest still ran. */
+  liveQueueOk: boolean;
 }
 
 /**
@@ -158,5 +161,16 @@ export async function runSweep(): Promise<SweepResult> {
     }
   }
 
-  return { noShows, reminders, expiredHolds };
+  // 3) Live queue: advance lapsed offers, re-home or auto-refund patients whose
+  //    nurse went offline, expire anyone past the hard cap, refresh estimates.
+  //    Guarantees nothing leaks even when no patient/nurse tab is polling.
+  let liveQueueOk = true;
+  try {
+    await advanceStaleLiveRequests();
+  } catch (err) {
+    liveQueueOk = false;
+    console.error("[sweep] live queue pass failed", err);
+  }
+
+  return { noShows, reminders, expiredHolds, liveQueueOk };
 }

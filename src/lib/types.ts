@@ -221,9 +221,13 @@ export interface LivePresence {
 export type LiveRequestStatus =
   | "pending_payment"
   | "searching"
+  /** Paid; every eligible nurse is busy, so the patient holds a place in line. */
+  | "queued"
   | "matched"
   | "expired"
-  | "cancelled";
+  | "cancelled"
+  /** Patient took the "schedule instead" offer; see convertedAppointmentId. */
+  | "converted";
 
 /** A patient's on-demand live-visit request, matched to a nurse Uber-style. */
 export interface LiveRequest {
@@ -248,9 +252,50 @@ export interface LiveRequest {
   offerExpiresAt?: number | null;
   /** Nurses who declined or timed out (not pinged again). */
   declinedBy?: string[];
+  /** When the current search (offer round) started; drives the safety cap. */
+  searchStartedAt?: number;
+  // ── Queue (status === "queued", or carried along once popped) ──
+  /** Nurse whose line the patient is waiting in. */
+  queuedProviderId?: string | null;
+  /** Display name of that nurse, denormalized for the patient screen. */
+  queuedProviderName?: string | null;
+  queuedAt?: number | null;
+  /** 1-based place in that nurse's line (recomputed server-side). */
+  position?: number | null;
+  /** Projected start time (epoch ms), recomputed on every queue event. */
+  estimateAt?: number | null;
+  /** Projected end of the nurse's current visit (epoch ms), if any. */
+  currentVisitEndsAt?: number | null;
+  /** Next scheduled (non-live) visit start for the nurse, if it gates the queue. */
+  nextScheduledStart?: number | null;
+  /** When the schedule-instead fallback was first offered. */
+  waitOfferedScheduleAt?: number | null;
+  /** Last time the head of the line was popped into a 15s offer. */
+  lastPoppedAt?: number | null;
+  /** Set on the offer when it came off the queue (how long they've waited). */
+  queuedWaitMs?: number | null;
+  /** Set when the patient converted to a scheduled visit. */
+  convertedAppointmentId?: string | null;
   createdAt: number;
   updatedAt: number;
   expiresAt?: number;
+}
+
+/** Pre-payment projection for a service line (see estimateForNewRequest). */
+export interface LiveEstimate {
+  /** True when at least one eligible nurse is online (now or after a wait). */
+  available: boolean;
+  nurseCount: number;
+  /** Projected wait for a brand-new request, in ms (0 = right now). */
+  bestWaitMs: number;
+  /** 1-based place the new request would take in the best nurse's line. */
+  position: number;
+  /** Projected start time, epoch ms. */
+  nextOpeningAt: number | null;
+  reason: "now" | "busy" | "scheduled_block" | "none";
+  /** Best nurse's uid and display name (for copy like "Crystal is in a visit"). */
+  providerId?: string | null;
+  providerName?: string | null;
 }
 
 /** Intake questionnaire response. Considered PHI. */

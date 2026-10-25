@@ -3,6 +3,7 @@ import { adminDb } from "@/lib/firebase/admin";
 import { COLLECTIONS } from "@/lib/firebase/collections";
 import { verifyBearer } from "@/lib/api-auth";
 import { freeProvider } from "@/lib/live-server";
+import { tickLiveQueue } from "@/lib/live-queue";
 import { transferLiveVisitShare } from "@/lib/connect-server";
 import { sendEmail, visitSummaryEmail } from "@/lib/notify";
 import { resolvePrefs } from "@/lib/notifications";
@@ -58,8 +59,9 @@ export async function POST(
 
   await batch.commit();
 
-  // Free the nurse to take the next real-time visit, and send them their share
-  // via Stripe Connect if they've onboarded (otherwise it stays owed manually).
+  // Free the nurse to take the next real-time visit (this also rings the next
+  // patient in their line), and send them their share via Stripe Connect if
+  // they've onboarded (otherwise it stays owed manually).
   if (a.isLive) {
     await freeProvider(a.providerId);
     try {
@@ -68,6 +70,9 @@ export async function POST(
       // Leave the visit as manually owed; admin payouts will pick it up.
       console.error("[appointments/complete] live transfer failed", err);
     }
+  } else {
+    // A scheduled block just cleared — queued live patients may now be admissible.
+    await tickLiveQueue().catch(() => {});
   }
 
   // Email the patient their visit summary (best effort, respects email prefs).

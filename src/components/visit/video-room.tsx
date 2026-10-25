@@ -12,6 +12,7 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import {
+  CheckCircle2,
   Clock,
   Loader2,
   Mic,
@@ -19,6 +20,7 @@ import {
   PhoneOff,
   UserCheck,
   UserX,
+  Users,
   Video as VideoIcon,
   VideoOff,
 } from "lucide-react";
@@ -27,11 +29,16 @@ import { COLLECTIONS } from "@/lib/firebase/collections";
 import { authedFetch } from "@/lib/api-client";
 import { useIntake, useUserProfile } from "@/lib/hooks";
 import { formatTime } from "@/lib/datetime";
+import { SCHEDULED_LATE_MS } from "@/lib/live-queue-math";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm";
 import { useToast } from "@/components/ui/toast";
 import { ProviderVisitPanel } from "@/components/visit/provider-visit-panel";
+import { QueueStrip, useLiveQueue } from "@/components/live/queue-strip";
 import type { Appointment, Role } from "@/lib/types";
+
+/** While a nurse is in a room, keep her live-presence heartbeat fresh. */
+const PRESENCE_BEAT_MS = 20_000;
 
 type CallRole = "provider" | "client";
 type Status = "waiting" | "connected" | "error" | "ended";
@@ -130,11 +137,30 @@ export function VideoRoom({
   const [now, setNow] = React.useState(() => Date.now());
   const [peerLastSeen, setPeerLastSeen] = React.useState(0);
   const [closingOut, setClosingOut] = React.useState(false);
+  const [startingNext, setStartingNext] = React.useState(false);
+  /** The panel's End Appointment flow, so the control bar can trigger it. */
+  const completeRef = React.useRef<(() => Promise<void>) | null>(null);
+  const registerComplete = React.useCallback((fn: () => Promise<void>) => {
+    completeRef.current = fn;
+  }, []);
+  const queue = useLiveQueue(callRole === "provider");
 
   const callDoc = React.useMemo(
     () => doc(db, COLLECTIONS.signaling, appointment.id),
     [appointment.id],
   );
+
+  // Nurse: stay fresh in the live pool while in the room (patients queue
+  // behind this visit). Only touches lastSeenAt — never flips online/busy.
+  React.useEffect(() => {
+    if (callRole !== "provider") return;
+    const ref = doc(db, COLLECTIONS.presence, appointment.providerId);
+    const beat = () =>
+      setDoc(ref, { lastSeenAt: Date.now() }, { merge: true }).catch(() => {});
+    beat();
+    const t = setInterval(beat, PRESENCE_BEAT_MS);
+    return () => clearInterval(t);
+  }, [callRole, appointment.providerId]);
 
   const peerPresent = now - peerLastSeen < PRESENCE_TTL_MS;
   const windowLeft = appointment.end - now;
@@ -442,6 +468,29 @@ export function VideoRoom({
     }
   }
 
+  /** Nurse: a scheduled patient is 5+ min late and someone's waiting in line. */
+  async function startNextLive() {
+    const ok = await confirm({
+      title: "Start the next live visit?",
+      message: `${peerName} hasn't arrived. The next paid patient in your line will be connected to you now; this scheduled window stays open until ${formatTime(appointment.end)} so you can still close it out afterwards.`,
+      confirmLabel: "Start next live visit",
+    });
+    if (!ok) return;
+    setStartingNext(true);
+    try {
+      const res = await authedFetch("/api/live/pop-next", { method: "POST" });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok || !j.appointmentId) {
+        throw new Error(j.error || "Couldn't start the next visit.");
+      }
+      hangUp();
+      router.push(`/visit/${j.appointmentId}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't start the next visit.");
+      setStartingNext(false);
+    }
+  }
+
   const callEnded = status === "ended" || visitClosed;
   const patientEverJoined = !!appointment.joinedAt?.client;
   const canMarkNoShow =
@@ -450,6 +499,13 @@ export function VideoRoom({
     !peerPresent &&
     !patientEverJoined &&
     windowLeft <= 60_000;
+  const canStartNext =
+    callRole === "provider" &&
+    status === "waiting" &&
+    !appointment.isLive &&
+    !peerPresent &&
+    now >= appointment.start + SCHEDULED_LATE_MS &&
+    (queue?.count ?? 0) > 0;
 
   // ── Waiting-room overlay copy ─────────────────────────────────────────
   function waitingCopy() {
@@ -580,6 +636,20 @@ export function VideoRoom({
                         Visit window held open until {formatTime(appointment.end)}
                       </p>
                     )}
+                    {canStartNext && (
+                      <Button
+                        className="mt-2"
+                        onClick={startNextLive}
+                        disabled={startingNext}
+                      >
+                        {startingNext ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Users className="h-4 w-4" />
+                        )}
+                        Start next live visit ({queue?.count} waiting)
+                      </Button>
+                    )}
                     {canMarkNoShow && (
                       <Button
                         variant="accent"
@@ -641,8 +711,12 @@ export function VideoRoom({
               </Button>
             )}
             {callRole === "provider" && (
-              <Button variant="accent" onClick={hangUp} className="rounded-full">
-                <PhoneOff className="h-5 w-5" /> End call
+              <Button
+                variant="accent"
+                onClick={() => completeRef.current?.()}
+                className="rounded-full"
+              >
+                <CheckCircle2 className="h-5 w-5" /> End Appointment
               </Button>
             )}
           </div>
@@ -651,17 +725,23 @@ export function VideoRoom({
 
       {/* Provider clinical panel */}
       {callRole === "provider" && (
-        <aside className="w-full border-t border-[var(--border)] lg:h-screen lg:w-[420px] lg:overflow-hidden lg:border-l lg:border-t-0">
-          <ProviderVisitPanel
-            appointment={appointment}
-            intake={intake}
-            callEnded={callEnded}
-            onEndCall={hangUp}
-            onCompleted={() => {
-              hangUp();
-              router.push("/provider/schedule");
-            }}
-          />
+        <aside className="flex w-full flex-col border-t border-[var(--border)] lg:h-screen lg:w-[420px] lg:overflow-hidden lg:border-l lg:border-t-0">
+          <QueueStrip view={queue} compact className="rounded-none border-x-0 border-t-0" />
+          <div className="min-h-0 flex-1">
+            <ProviderVisitPanel
+              appointment={appointment}
+              intake={intake}
+              callEnded={callEnded}
+              onEndCall={hangUp}
+              onRegisterComplete={registerComplete}
+              onCompleted={() => {
+                hangUp();
+                // Back to the overview: the queue strip + the next-in-line
+                // offer modal live there, and the nurse is still "live".
+                router.push("/provider");
+              }}
+            />
+          </div>
         </aside>
       )}
     </div>

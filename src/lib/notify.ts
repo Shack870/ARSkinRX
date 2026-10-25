@@ -144,7 +144,7 @@ export function bookingConfirmedEmail(opts: {
       }
       <p>${button(`${APP_URL}/dashboard`, "Go to my dashboard")}</p>
       <p style="color:#5d6b67;font-size:13px">Miss your window? Reschedule once for
-      free. Refunds aren't available within 48 hours of the visit.</p>
+      free. Refunds aren't available within 24 hours of the visit.</p>
     `),
   };
 }

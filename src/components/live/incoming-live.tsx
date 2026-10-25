@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useProviderAppointments } from "@/lib/hooks";
 import { SERVICE_MAP } from "@/lib/services";
 import { Button } from "@/components/ui/button";
+import { holdPresenceForVisit } from "@/components/live/presence-context";
 
 /**
  * Full-screen "incoming live visit" prompt for nurses. Appears when a live
@@ -46,7 +47,11 @@ export function IncomingLive() {
           </span>
           .
         </p>
-        <Link href={`/visit/${incoming.id}`} className="mt-6 block">
+        <Link
+          href={`/visit/${incoming.id}`}
+          className="mt-6 block"
+          onClick={holdPresenceForVisit}
+        >
           <Button size="lg" className="w-full">
             <Video className="h-5 w-5" /> Join now
           </Button>

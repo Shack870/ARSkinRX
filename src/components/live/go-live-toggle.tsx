@@ -37,7 +37,7 @@ export function GoLiveToggle() {
             </p>
             <p className="text-sm text-[var(--muted-foreground)]">
               {online
-                ? "Patients can connect with you instantly. Stay on the dashboard to remain live."
+                ? "Patients can connect with you instantly, and wait in your line while you're in a visit. Stay on the dashboard (or in a visit room) to remain live."
                 : canGoLive
                   ? "Go live to accept No-Wait visits right now."
                   : "Approval required before you can go live."}

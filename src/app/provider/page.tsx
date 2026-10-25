@@ -24,6 +24,8 @@ import { Button } from "@/components/ui/button";
 import { WaitingBadge } from "@/components/visit/waiting-badge";
 import { GoLiveToggle } from "@/components/live/go-live-toggle";
 import { LiveBadge } from "@/components/live/live-badge";
+import { QueueStrip } from "@/components/live/queue-strip";
+import { holdPresenceForVisit } from "@/components/live/presence-context";
 import { PayoutSetupCard } from "@/components/provider/payout-setup-card";
 import type { Appointment } from "@/lib/types";
 
@@ -79,6 +81,8 @@ export default function ProviderOverview() {
           </div>
         ) : null}
       </div>
+
+      <QueueStrip />
 
       <GoLiveToggle />
 
@@ -206,7 +210,7 @@ function AppointmentRow({ appt }: { appt: Appointment }) {
         {joinable && appt.status !== "completed" && (
           <>
             <WaitingBadge appointmentId={appt.id} peer="client" />
-            <Link href={`/visit/${appt.id}`}>
+            <Link href={`/visit/${appt.id}`} onClick={holdPresenceForVisit}>
               <Button size="sm">
                 <Video className="h-4 w-4" /> Enter room
               </Button>

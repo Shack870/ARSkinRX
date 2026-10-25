@@ -83,11 +83,11 @@ export default function AdminPaymentsPage() {
         body: JSON.stringify({ force }),
       });
       const d = await res.json().catch(() => ({}));
-      if (res.status === 409 && d.error === "within_48h") {
+      if (res.status === 409 && d.error === "within_24h") {
         setBusy(null);
         if (
           await confirm({
-            title: "Within 48 hours",
+            title: "Within 24 hours",
             message: `${d.message} Override and refund anyway?`,
             confirmLabel: "Override & refund",
             destructive: true,

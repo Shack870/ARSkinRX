@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useAppointment } from "@/lib/hooks";
 import { JOIN_EARLY_MS, windowState } from "@/lib/appointment-window";
 import { formatTime, formatRelativeDay } from "@/lib/datetime";
+import { consumeAutoJoin } from "@/lib/auto-join";
 import { Lobby } from "@/components/visit/lobby";
 import { VideoRoom } from "@/components/visit/video-room";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,15 @@ export default function VisitPage({
   const { appointment, loading } = useAppointment(id);
   const [stream, setStream] = React.useState<MediaStream | null>(null);
   const [now, setNow] = React.useState(() => Date.now());
+  // Live patients arrive from /live/[id] with ?auto=1 (and a session flag):
+  // skip the lobby and request the camera here. Read once, lazily, so this
+  // page needs no Suspense boundary for search params.
+  const [autoRequested] = React.useState(() => {
+    if (typeof window === "undefined") return false;
+    const fromQuery = new URLSearchParams(window.location.search).get("auto") === "1";
+    return consumeAutoJoin(id) || fromQuery;
+  });
+  const [autoFailed, setAutoFailed] = React.useState(false);
 
   React.useEffect(() => {
     if (!authLoading && !user) {
@@ -126,6 +136,14 @@ export default function VisitPage({
   }
 
   if (!stream) {
+    if (callRole === "client" && autoRequested && !autoFailed) {
+      return (
+        <AutoJoin
+          onReady={setStream}
+          onFail={() => setAutoFailed(true)}
+        />
+      );
+    }
     return (
       <Lobby
         appointment={appointment}
@@ -138,6 +156,47 @@ export default function VisitPage({
 
   return (
     <VideoRoom appointment={appointment} role={callRole} initialStream={stream} />
+  );
+}
+
+/**
+ * No-click entry for live patients: grab the camera/mic (the browser already
+ * remembered the grant from the live page's preview) and hand the stream to
+ * the room. Any failure falls back to the regular lobby, which explains how
+ * to fix permissions.
+ */
+function AutoJoin({
+  onReady,
+  onFail,
+}: {
+  onReady: (s: MediaStream) => void;
+  onFail: () => void;
+}) {
+  React.useEffect(() => {
+    let cancelled = false;
+    navigator.mediaDevices
+      .getUserMedia({ video: { facingMode: "user" }, audio: true })
+      .then((s) => {
+        if (cancelled) {
+          s.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        onReady(s);
+      })
+      .catch(() => {
+        if (!cancelled) onFail();
+      });
+    return () => {
+      cancelled = true;
+    };
+    // Run once on mount; callbacks are stable setState wrappers.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return (
+    <Centered>
+      <Loader2 className="h-6 w-6 animate-spin text-[var(--primary)]" />
+      <p className="mt-2 text-sm text-neutral-300">Starting your camera…</p>
+    </Centered>
   );
 }
 

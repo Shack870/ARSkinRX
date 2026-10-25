@@ -32,8 +32,15 @@ interface AuthContextValue {
   resendVerification: () => Promise<void>;
   /** Sign in with a server-minted custom token (guest booking). */
   signInWithToken: (token: string) => Promise<FirebaseUser>;
-  /** Set a password on a password-less (guest/admin-created) account. */
-  setPassword: (password: string) => Promise<void>;
+  /**
+   * Set a password on a password-less (guest/admin-created) account. Extra
+   * profile fields collected at the same time (e.g. dob) are saved first so
+   * they persist even if the password step needs the emailed reset link.
+   */
+  setPassword: (
+    password: string,
+    profilePatch?: Partial<Pick<UserProfile, "dob" | "phone">>,
+  ) => Promise<void>;
 }
 
 const AuthContext = React.createContext<AuthContextValue | undefined>(undefined);
@@ -147,15 +154,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return cred.user;
   }, []);
 
-  const setPassword = React.useCallback(async (password: string) => {
-    const u = auth.currentUser;
-    if (!u) throw new Error("Not signed in.");
-    await updatePassword(u, password);
-    await updateDoc(doc(db, COLLECTIONS.users, u.uid), {
-      passwordSet: true,
-      updatedAt: Date.now(),
-    });
-  }, []);
+  const setPassword = React.useCallback(
+    async (
+      password: string,
+      profilePatch?: Partial<Pick<UserProfile, "dob" | "phone">>,
+    ) => {
+      const u = auth.currentUser;
+      if (!u) throw new Error("Not signed in.");
+      const ref = doc(db, COLLECTIONS.users, u.uid);
+      if (profilePatch && Object.keys(profilePatch).length) {
+        await updateDoc(ref, { ...profilePatch, updatedAt: Date.now() });
+      }
+      await updatePassword(u, password);
+      await updateDoc(ref, { passwordSet: true, updatedAt: Date.now() });
+    },
+    [],
+  );
 
   const value: AuthContextValue = {
     user,

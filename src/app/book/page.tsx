@@ -23,7 +23,8 @@ import { uploadIntakePhoto } from "@/lib/storage";
 import { SERVICES, getServiceBySlug, getService } from "@/lib/services";
 import { formatCurrency } from "@/lib/utils";
 import { formatRelativeDay, formatTime } from "@/lib/datetime";
-import type { ServiceType } from "@/lib/types";
+import { normalizeUsPhone } from "@/lib/phone";
+import type { LiveEstimate, ServiceType } from "@/lib/types";
 
 function initials(name: string) {
   return name
@@ -121,8 +122,10 @@ function BookInner() {
   const [photoPaths, setPhotoPaths] = React.useState<string[]>([]);
   const [uploadingPhoto, setUploadingPhoto] = React.useState(false);
   const [liveAvailable, setLiveAvailable] = React.useState(false);
+  const [liveEstimate, setLiveEstimate] = React.useState<LiveEstimate | null>(null);
   const [livePriceCents, setLivePriceCents] = React.useState(9900);
   const [startingLive, setStartingLive] = React.useState(false);
+  const slotsRef = React.useRef<HTMLHeadingElement>(null);
 
   const service = serviceId ? getService(serviceId) : null;
 
@@ -145,9 +148,13 @@ function BookInner() {
         .then((r) => r.json())
         .then((d) => {
           setLiveAvailable(!!d.available);
+          setLiveEstimate((d.estimate as LiveEstimate | null) ?? null);
           if (d.realtimePriceCents) setLivePriceCents(d.realtimePriceCents);
         })
-        .catch(() => setLiveAvailable(false));
+        .catch(() => {
+          setLiveAvailable(false);
+          setLiveEstimate(null);
+        });
     check();
     if (step !== 3) return;
     const id = setInterval(check, 12000);
@@ -212,6 +219,11 @@ function BookInner() {
       setError("Enter a valid email.");
       return false;
     }
+    const phone = normalizeUsPhone(guest.phone);
+    if (!existingAccount && !phone) {
+      setError("Enter a valid 10-digit US mobile number.");
+      return false;
+    }
     if (!guest.consent) {
       setError("Please agree to the Terms and Telehealth Consent.");
       return false;
@@ -232,7 +244,7 @@ function BookInner() {
         body: JSON.stringify({
           email,
           displayName: guest.displayName.trim(),
-          phone: guest.phone.trim(),
+          phone,
           consent: true,
         }),
       });
@@ -577,14 +589,17 @@ function BookInner() {
                       </div>
                       <div className="sm:col-span-2">
                         <Label htmlFor="g-phone">
-                          Phone{" "}
+                          Mobile phone{" "}
                           <span className="font-normal text-[var(--muted-foreground)]">
-                            (optional, for reminders)
+                            (required — your nurse may need to reach you)
                           </span>
                         </Label>
                         <Input
                           id="g-phone"
                           type="tel"
+                          required
+                          inputMode="tel"
+                          placeholder="(501) 555-0123"
                           value={guest.phone}
                           onChange={(e) =>
                             setGuest({ ...guest, phone: e.target.value })
@@ -750,9 +765,19 @@ function BookInner() {
                 <LiveConnectCard
                   providers={providers}
                   available={liveAvailable}
+                  estimate={liveEstimate}
                   priceCents={livePriceCents}
+                  scheduledPriceCents={
+                    provider?.priceCents ?? service?.defaultPriceCents ?? 0
+                  }
                   starting={startingLive}
                   onStart={startLiveVisit}
+                  onSchedule={() =>
+                    slotsRef.current?.scrollIntoView({
+                      behavior: "smooth",
+                      block: "start",
+                    })
+                  }
                 />
 
                 {/* Clear "or save by scheduling" alternative */}
@@ -793,7 +818,10 @@ function BookInner() {
                   );
                 })()}
 
-                <h3 className="mb-3 mt-6 text-sm font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
+                <h3
+                  ref={slotsRef}
+                  className="mb-3 mt-6 scroll-mt-24 text-sm font-semibold uppercase tracking-wide text-[var(--muted-foreground)]"
+                >
                   Available times
                 </h3>
                 {loadingSlots ? (
@@ -916,7 +944,7 @@ function BookInner() {
                   >
                     telehealth consent
                   </Link>
-                  . Free reschedule if you miss your window; no refunds within 48
+                  . Free reschedule if you miss your window; no refunds within 24
                   hours of the visit.
                 </p>
               </div>

@@ -17,7 +17,10 @@ import { authedFetch } from "@/lib/api-client";
 import { useUserProfile, useVisitNote } from "@/lib/hooks";
 import { SERVICE_MAP } from "@/lib/services";
 import { formatDate } from "@/lib/datetime";
+import { ageFromDob, formatDob } from "@/lib/dob";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm";
+import { useToast } from "@/components/ui/toast";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { IntakeSummary } from "@/components/intake-summary";
@@ -47,13 +50,22 @@ export function ProviderVisitPanel({
   callEnded,
   onEndCall,
   onCompleted,
+  onRegisterComplete,
 }: {
   appointment: Appointment;
   intake: IntakeResponse | null;
   callEnded: boolean;
+  /** Secondary: drop the video but stay on the page to finish notes. */
   onEndCall: () => void;
   onCompleted: () => void;
+  /**
+   * Lets the room's control bar trigger the same "End Appointment" flow
+   * (confirm → save notes → mark completed) as the panel's button.
+   */
+  onRegisterComplete?: (fn: () => Promise<void>) => void;
 }) {
+  const confirm = useConfirm();
+  const toast = useToast();
   const { profile: patient } = useUserProfile(appointment.clientId);
   const { note } = useVisitNote(appointment.id);
   const [notes, setNotes] = React.useState<Notes>({
@@ -95,7 +107,9 @@ export function ProviderVisitPanel({
 
   // Debounced autosave to the visit note doc (persists across reload).
   const notesRef = React.useRef(notes);
-  notesRef.current = notes;
+  React.useEffect(() => {
+    notesRef.current = notes;
+  }, [notes]);
   React.useEffect(() => {
     if (!hydrated.current) return;
     setSaveState("saving");
@@ -126,21 +140,44 @@ export function ProviderVisitPanel({
     setNotes((n) => ({ ...n, [key]: value }));
   }
 
-  async function complete() {
+  // End Appointment: confirm → save notes → mark completed (frees the nurse
+  // and rings the next patient in line) → leave the room.
+  const completingRef = React.useRef(false);
+  const complete = React.useCallback(async () => {
+    if (completingRef.current) return;
+    const ok = await confirm({
+      title: "End appointment?",
+      message:
+        "This saves your notes, marks the visit completed, and emails the patient their summary. You'll be taken back to your dashboard.",
+      confirmLabel: "End appointment",
+    });
+    if (!ok) return;
+    completingRef.current = true;
     setCompleting(true);
     try {
-      await authedFetch(`/api/appointments/${appointment.id}/complete`, {
+      const res = await authedFetch(`/api/appointments/${appointment.id}/complete`, {
         method: "POST",
-        body: JSON.stringify({ notes }),
+        body: JSON.stringify({ notes: notesRef.current }),
       });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error || "Couldn't complete the visit.");
+      }
       onCompleted();
-    } catch {
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't complete the visit.");
+      completingRef.current = false;
       setCompleting(false);
     }
-  }
+  }, [appointment.id, confirm, onCompleted, toast]);
+
+  React.useEffect(() => {
+    onRegisterComplete?.(complete);
+  }, [onRegisterComplete, complete]);
 
   const service = SERVICE_MAP[appointment.serviceId];
   const last = history?.lastVisit;
+  const age = ageFromDob(patient?.dob);
 
   return (
     <div className="flex h-full flex-col bg-[var(--card)] text-[var(--foreground)]">
@@ -148,12 +185,19 @@ export function ProviderVisitPanel({
         <div className="min-w-0">
           <p className="truncate font-semibold">
             {patient?.displayName ?? "Patient"}
+            {patient?.dob && (
+              <span className="ml-2 text-sm font-normal text-[var(--muted-foreground)]">
+                {formatDob(patient.dob)}
+                {age !== null ? ` (${age})` : ""}
+              </span>
+            )}
           </p>
           <p className="truncate text-xs text-[var(--muted-foreground)]">
             {service?.name}
             {history && history.pastVisitCount > 0
               ? ` · ${history.pastVisitCount} prior visit${history.pastVisitCount > 1 ? "s" : ""}`
               : " · New patient"}
+            {patient?.phone ? ` · ${patient.phone}` : ""}
           </p>
         </div>
         <SaveBadge state={saveState} />
@@ -167,6 +211,14 @@ export function ProviderVisitPanel({
           </h3>
           <p className="text-sm">{patient?.email}</p>
           {patient?.phone && <p className="text-sm">{patient.phone}</p>}
+          {patient?.dob ? (
+            <p className="text-sm">
+              DOB {formatDob(patient.dob)}
+              {age !== null ? ` · ${age} years old` : ""}
+            </p>
+          ) : (
+            <p className="text-sm text-[var(--muted-foreground)]">DOB not on file</p>
+          )}
         </section>
 
         {/* Intake */}
@@ -226,23 +278,28 @@ export function ProviderVisitPanel({
 
       {/* Actions */}
       <div className="space-y-2 border-t border-[var(--border)] p-4">
-        {!callEnded ? (
-          <Button variant="outline" className="w-full" onClick={onEndCall}>
-            <PhoneOff className="h-4 w-4" /> End call (keep writing notes)
-          </Button>
-        ) : (
-          <p className="text-center text-xs text-[var(--muted-foreground)]">
-            Call ended. Finish your notes, then complete the visit.
-          </p>
-        )}
         <Button className="w-full" onClick={complete} disabled={completing}>
           {completing ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <CheckCircle2 className="h-4 w-4" />
           )}
-          Complete visit
+          End Appointment
         </Button>
+        {!callEnded ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full text-[var(--muted-foreground)]"
+            onClick={onEndCall}
+          >
+            <PhoneOff className="h-4 w-4" /> Disconnect video only (keep writing notes)
+          </Button>
+        ) : (
+          <p className="text-center text-xs text-[var(--muted-foreground)]">
+            Video disconnected. Finish your notes, then end the appointment.
+          </p>
+        )}
       </div>
     </div>
   );

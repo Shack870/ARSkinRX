@@ -19,6 +19,16 @@ interface PresenceValue {
 const PresenceContext = React.createContext<PresenceValue | undefined>(undefined);
 
 const HEARTBEAT_MS = 20_000;
+/** Set right before navigating into a visit so unmount doesn't go offline. */
+export const PRESENCE_HOLD_KEY = "arx:presence-hold";
+
+export function holdPresenceForVisit() {
+  try {
+    sessionStorage.setItem(PRESENCE_HOLD_KEY, "1");
+  } catch {
+    /* ignore */
+  }
+}
 
 /**
  * Mounted in the provider layout so a nurse's "live" presence persists across
@@ -66,16 +76,29 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
     };
   }, [online, user]);
 
-  // Leave the pool when the provider leaves the dashboard entirely.
+  // Leave the pool when the provider leaves the dashboard entirely — but NOT
+  // when they're heading into a visit room (/visit/…): a nurse in a visit is
+  // exactly who queued patients are waiting behind. The room keeps her
+  // heartbeat fresh; she comes back here afterwards and the toggle still
+  // shows "live".
   React.useEffect(() => {
     return () => {
-      if (user) {
-        setDoc(
-          doc(db, COLLECTIONS.presence, user.uid),
-          { online: false, updatedAt: Date.now() },
-          { merge: true },
-        ).catch(() => {});
+      if (!user) return;
+      const toVisit =
+        typeof window !== "undefined" &&
+        (window.location.pathname.startsWith("/visit/") ||
+          sessionStorage.getItem(PRESENCE_HOLD_KEY) === "1");
+      try {
+        sessionStorage.removeItem(PRESENCE_HOLD_KEY);
+      } catch {
+        /* ignore */
       }
+      if (toVisit) return;
+      setDoc(
+        doc(db, COLLECTIONS.presence, user.uid),
+        { online: false, updatedAt: Date.now() },
+        { merge: true },
+      ).catch(() => {});
     };
   }, [user]);
 

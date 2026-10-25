@@ -4,18 +4,26 @@ import { randomUUID } from "crypto";
 import { adminDb } from "@/lib/firebase/admin";
 import { COLLECTIONS } from "@/lib/firebase/collections";
 import { getService } from "@/lib/services";
+import {
+  LIVE_FRESH_MS,
+  OFFER_TTL_MS,
+  MAX_POPS_BEFORE_DECLINE,
+  chooseQueueNurse,
+  isFresh,
+  loadServiceTimelines,
+  onProviderFreed,
+  recomputeQueueForProvider,
+  tickLiveQueue,
+} from "@/lib/live-queue";
+import { canAdmitAt } from "@/lib/live-queue-math";
+import { refundLiveRequest } from "@/lib/refunds-server";
 import type { ServiceType } from "@/lib/types";
 
-/** A heartbeat older than this means the provider has dropped from the pool.
- *  Wide enough that a backgrounded/frozen nurse tab (whose heartbeat the
- *  browser pauses) still counts as online; explicit "Go offline" and the
- *  search-timeout/incoming-prompt cover abandoned sessions. */
-export const LIVE_FRESH_MS = 30 * 60 * 1000;
+export { LIVE_FRESH_MS, OFFER_TTL_MS };
+
 /** How long a paid request keeps searching before it's considered expired. */
 export const LIVE_SEARCH_MS = 120_000;
-/** How long a single nurse has to respond to a round-robin offer. */
-export const OFFER_TTL_MS = 15_000;
-/** Overall safety cap for a live request. */
+/** Overall safety cap for one search round (offers to idle nurses). */
 export const LIVE_MAX_MS = 5 * 60_000;
 /** Default premium price for a No-Wait Live (no-appointment) visit. */
 export const DEFAULT_LIVE_PRICE_CENTS = 9900;
@@ -30,11 +38,7 @@ export async function getLivePriceCents(): Promise<number> {
   return Number.isFinite(v) && v > 0 ? v : DEFAULT_LIVE_PRICE_CENTS;
 }
 
-function isFresh(lastSeenAt: number | undefined, now: number): boolean {
-  return !!lastSeenAt && lastSeenAt > now - LIVE_FRESH_MS;
-}
-
-/** Count nurses currently available for a live visit in this service line. */
+/** Count nurses currently idle for a live visit in this service line. */
 export async function countAvailableProviders(
   serviceId: ServiceType,
 ): Promise<number> {
@@ -60,6 +64,8 @@ export interface LiveOffer {
   serviceId: ServiceType;
   priceCents: number;
   offerExpiresAt: number;
+  /** Set when the patient came off the queue: how long they've been waiting. */
+  queuedWaitMs?: number;
 }
 
 export interface OrchestrateResult {
@@ -70,15 +76,32 @@ export interface OrchestrateResult {
 
 /**
  * Round-robin driver. Ensures a searching request has exactly one active offer
- * to one nurse for up to 15s. On timeout, that nurse is marked declined and the
- * next eligible nurse is pinged. When nobody's left, the request expires.
- * Safe to call from multiple pollers (single transaction).
+ * to one idle, admissible nurse for up to 15s. On timeout, that nurse is marked
+ * declined and the next eligible nurse is pinged. When no idle nurse is left
+ * but someone eligible is still online (busy or gated by a booking), the
+ * request joins that nurse's line (`queued`) instead of expiring. Only when
+ * nobody is online does it expire. Safe to call from multiple pollers.
  */
 export async function orchestrateLiveRequest(
   liveRequestId: string,
 ): Promise<OrchestrateResult> {
   const reqRef = adminDb.collection(COLLECTIONS.liveRequests).doc(liveRequestId);
   let out: OrchestrateResult = { status: "searching" };
+
+  // Quick pre-read so we only build timelines for requests that need a move.
+  const pre = await reqRef.get();
+  if (!pre.exists) return { status: "not_found" };
+  if (pre.get("status") !== "searching") {
+    return { status: pre.get("status"), appointmentId: pre.get("appointmentId") };
+  }
+  const preNow = Date.now();
+  if (pre.get("offeredTo") && (pre.get("offerExpiresAt") ?? 0) > preNow) {
+    return { status: "searching", offeredTo: pre.get("offeredTo") };
+  }
+  const serviceId = pre.get("serviceId") as ServiceType;
+  const timelines = await loadServiceTimelines(serviceId, preNow);
+
+  let queuedTo: string | null = null;
 
   await adminDb.runTransaction(async (tx) => {
     const reqSnap = await tx.get(reqRef);
@@ -93,28 +116,21 @@ export async function orchestrateLiveRequest(
     }
     const now = Date.now();
 
-    // Overall safety cap.
-    if (req.createdAt && now - req.createdAt > LIVE_MAX_MS) {
-      tx.update(reqRef, {
-        status: "expired",
-        refundEligible: true,
-        offeredTo: null,
-        offerExpiresAt: null,
-        updatedAt: now,
-      });
-      out = { status: "expired" };
-      return;
-    }
-
     // Current offer still active → leave it.
     if (req.offeredTo && (req.offerExpiresAt ?? 0) > now) {
       out = { status: "searching", offeredTo: req.offeredTo };
       return;
     }
 
-    // Advance: the previous nurse declined (timed out).
+    // Advance: the previous nurse's offer lapsed. An unanswered ring for a
+    // queued patient doesn't count as a decline (the nurse may just be
+    // between tasks) until it has happened a few times; until then the
+    // patient goes back to their place in line and the queue re-rings after
+    // a cooldown.
     const declined = new Set<string>(req.declinedBy ?? []);
-    if (req.offeredTo) declined.add(req.offeredTo);
+    const fromQueue = !!req.queuedProviderId && req.offeredTo === req.queuedProviderId;
+    const queueRingsLeft = fromQueue && (req.popCount ?? 0) < MAX_POPS_BEFORE_DECLINE;
+    if (req.offeredTo && !queueRingsLeft) declined.add(req.offeredTo);
 
     const candSnap = await tx.get(
       adminDb
@@ -122,36 +138,92 @@ export async function orchestrateLiveRequest(
         .where("online", "==", true)
         .where("conditions", "array-contains", req.serviceId),
     );
-    const next = candSnap.docs
-      .filter(
-        (d) =>
-          d.get("busy") !== true &&
-          isFresh(d.get("lastSeenAt"), now) &&
-          !declined.has(d.id),
-      )
+    const pooled = candSnap.docs.filter((d) => isFresh(d.get("lastSeenAt"), now));
+    const next = pooled
+      .filter((d) => {
+        if (d.get("busy") === true || declined.has(d.id)) return false;
+        // Don't instantly re-ring the queue nurse who just let it lapse.
+        if (queueRingsLeft && d.id === req.offeredTo) return false;
+        const tl = timelines.get(d.id);
+        // Admission rule: a 15-minute visit must fit before their next booking.
+        return !tl || (!tl.busyNow && canAdmitAt(now, tl.scheduled));
+      })
       .sort((a, b) => (a.get("lastSeenAt") ?? 0) - (b.get("lastSeenAt") ?? 0))[0];
 
-    if (!next) {
+    if (next) {
       tx.update(reqRef, {
-        status: "expired",
-        refundEligible: true,
+        offeredTo: next.id,
+        offerExpiresAt: now + OFFER_TTL_MS,
+        declinedBy: [...declined],
+        searchStartedAt: req.searchStartedAt ?? now,
+        updatedAt: now,
+      });
+      out = { status: "searching", offeredTo: next.id };
+      return;
+    }
+
+    if (queueRingsLeft) {
+      // Back to the same place in line; tickLiveQueue re-rings after POP_COOLDOWN_MS.
+      tx.update(reqRef, {
+        status: "queued",
+        offeredTo: null,
+        offerExpiresAt: null,
+        updatedAt: now,
+      });
+      queuedTo = req.queuedProviderId;
+      out = { status: "queued" };
+      return;
+    }
+
+    // Nobody idle. Is anyone eligible still online? Then wait in their line.
+    const online = new Set(pooled.map((d) => d.id));
+    const queueable = new Map(
+      [...timelines.entries()].filter(([id]) => online.has(id)),
+    );
+    const best = chooseQueueNurse(queueable, declined);
+    if (best) {
+      const queuedAt = req.queuedAt ?? now;
+      tx.update(reqRef, {
+        status: "queued",
+        queuedProviderId: best.providerId,
+        queuedProviderName: best.providerName,
+        queuedAt,
+        position: best.queue.length + 1,
+        estimateAt: best.nextOpeningAt,
+        currentVisitEndsAt: best.currentVisitEndsAt,
+        nextScheduledStart: best.nextScheduledStart,
+        waitOfferedScheduleAt: req.waitOfferedScheduleAt ?? null,
         offeredTo: null,
         offerExpiresAt: null,
         declinedBy: [...declined],
         updatedAt: now,
       });
-      out = { status: "expired" };
+      queuedTo = best.providerId;
+      out = { status: "queued" };
       return;
     }
 
+    // Safety cap applies only when nobody can take them.
     tx.update(reqRef, {
-      offeredTo: next.id,
-      offerExpiresAt: now + OFFER_TTL_MS,
+      status: "expired",
+      refundEligible: true,
+      expireReason: "no_nurse",
+      offeredTo: null,
+      offerExpiresAt: null,
       declinedBy: [...declined],
       updatedAt: now,
     });
-    out = { status: "searching", offeredTo: next.id };
+    out = { status: "expired" };
   });
+
+  if (out.status === "expired") {
+    // Paid and never seen → automatic full refund.
+    await refundLiveRequest(liveRequestId, { reason: "no_nurse_available" }).catch(
+      (err) => console.error("[live] auto-refund failed", liveRequestId, err),
+    );
+  } else if (queuedTo) {
+    await recomputeQueueForProvider(queuedTo).catch(() => {});
+  }
 
   return out;
 }
@@ -174,9 +246,11 @@ export async function markLivePaidAndMatch(
     tx.update(ref, {
       status: "searching",
       stripePaymentIntentId,
+      paidAt: now,
       expiresAt: now + LIVE_SEARCH_MS,
       // Restart the safety clock from payment, not from when the form was filled.
       createdAt: now,
+      searchStartedAt: now,
       updatedAt: now,
     });
   });
@@ -185,8 +259,10 @@ export async function markLivePaidAndMatch(
 
 /**
  * Advance any searching request whose current offer has lapsed (or that has
- * no offer yet). Called from the nurses' incoming poll so round-robin keeps
- * moving even if the patient's tab is closed or backgrounded.
+ * no offer yet), then run the queue (ring free nurses, refresh estimates,
+ * re-home or refund patients whose nurse left). Called from the nurses'
+ * incoming poll and the patient's status poll so the system keeps moving even
+ * if one side's tab is closed or backgrounded.
  */
 export async function advanceStaleLiveRequests(): Promise<void> {
   const now = Date.now();
@@ -198,6 +274,9 @@ export async function advanceStaleLiveRequests(): Promise<void> {
     snap.docs
       .filter((d) => !d.get("offeredTo") || (d.get("offerExpiresAt") ?? 0) <= now)
       .map((d) => orchestrateLiveRequest(d.id).catch(() => {})),
+  );
+  await tickLiveQueue(now).catch((err) =>
+    console.error("[live] queue tick failed", err),
   );
 }
 
@@ -235,6 +314,9 @@ export async function incomingForProvider(
       serviceId: d.get("serviceId"),
       priceCents: d.get("priceCents") ?? 0,
       offerExpiresAt: d.get("offerExpiresAt") ?? 0,
+      ...(d.get("queuedAt")
+        ? { queuedWaitMs: Math.max(0, now - (d.get("queuedAt") as number)) }
+        : {}),
     }));
 }
 
@@ -272,6 +354,7 @@ export async function acceptLiveRequest(
   const reqRef = adminDb.collection(COLLECTIONS.liveRequests).doc(liveRequestId);
   const presRef = adminDb.collection(COLLECTIONS.presence).doc(providerId);
   let result: AcceptResult = { ok: false, reason: "error" };
+  let queuedProviderId: string | null = null;
 
   await adminDb.runTransaction(async (tx) => {
     const reqSnap = await tx.get(reqRef);
@@ -327,6 +410,7 @@ export async function acceptLiveRequest(
       end: now + durationMs,
       status: "in_progress",
       isLive: true,
+      liveRequestId,
       priceCents: req.priceCents,
       platformFeeCents: req.platformFeeCents ?? 0,
       paymentId: paymentRef.id,
@@ -364,21 +448,28 @@ export async function acceptLiveRequest(
       status: "matched",
       providerId,
       appointmentId: apptRef.id,
+      matchedAt: now,
       offeredTo: null,
       offerExpiresAt: null,
       updatedAt: now,
     });
+    queuedProviderId = req.queuedProviderId ?? null;
 
     result = { ok: true, appointmentId: apptRef.id };
   });
 
+  // Everyone behind them moves up a place.
+  if (result.ok && queuedProviderId) {
+    await recomputeQueueForProvider(queuedProviderId).catch(() => {});
+  }
+
   return result;
 }
 
-/** Marks a provider free again (e.g., after a live visit ends). */
+/**
+ * Marks a provider free again (after a live visit ends) and immediately runs
+ * the queue so the next patient in their line rings.
+ */
 export async function freeProvider(providerId: string): Promise<void> {
-  const ref = adminDb.collection(COLLECTIONS.presence).doc(providerId);
-  if ((await ref.get()).exists) {
-    await ref.update({ busy: false, updatedAt: Date.now() });
-  }
+  await onProviderFreed(providerId);
 }

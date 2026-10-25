@@ -4,13 +4,16 @@ import { COLLECTIONS } from "@/lib/firebase/collections";
 import { verifyBearer } from "@/lib/api-auth";
 import { getEffectiveService } from "@/lib/services-server";
 import { platformFeeCents } from "@/lib/stripe";
-import { countAvailableProviders, getLivePriceCents } from "@/lib/live-server";
+import { getLivePriceCents } from "@/lib/live-server";
+import { estimateForNewRequest } from "@/lib/live-queue";
 import { rateLimit } from "@/lib/rate-limit";
 import type { ServiceType } from "@/lib/types";
 
 /**
  * POST /api/live/request { serviceId, intake, photoPaths }
- * Creates a pending-payment live request after confirming a nurse is available.
+ * Creates a pending-payment live request after confirming at least one
+ * eligible nurse is online (free now, or reachable after a projected wait —
+ * the patient saw that projection before tapping Live Connect).
  */
 export async function POST(req: Request) {
   const limited = rateLimit(req, "live-request", 20);
@@ -26,9 +29,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Service unavailable" }, { status: 400 });
   }
 
-  // Re-confirm a nurse is available right now before creating the request.
-  const count = await countAvailableProviders(serviceId);
-  if (count === 0) {
+  // Re-confirm a nurse is reachable before creating the request.
+  const estimate = await estimateForNewRequest(serviceId);
+  if (!estimate.available) {
     return NextResponse.json(
       { error: "No live nurses are available right now." },
       { status: 409 },
@@ -49,9 +52,12 @@ export async function POST(req: Request) {
     platformFeeCents: platformFeeCents(priceCents),
     intake: body.intake ?? {},
     photoPaths: Array.isArray(body.photoPaths) ? body.photoPaths : [],
+    // What the patient was told before paying (for support / analytics).
+    projectedWaitMs: estimate.bestWaitMs,
+    projectedReason: estimate.reason,
     createdAt: now,
     updatedAt: now,
   });
 
-  return NextResponse.json({ liveRequestId: ref.id, priceCents });
+  return NextResponse.json({ liveRequestId: ref.id, priceCents, estimate });
 }

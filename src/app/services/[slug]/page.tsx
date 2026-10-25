@@ -75,7 +75,7 @@ export default async function ServicePage({
     },
     {
       q: "What if I need to reschedule?",
-      a: "If you miss your window you can reschedule once for free. Refunds aren't available within 48 hours of a visit.",
+      a: "If you miss your window you can reschedule once for free. Refunds aren't available within 24 hours of a visit.",
     },
   ];
 

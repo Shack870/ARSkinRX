@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { adminAuth } from "@/lib/firebase/admin";
 import { findOrCreateClient } from "@/lib/clients-server";
+import { normalizeUsPhone } from "@/lib/phone";
 import { rateLimit } from "@/lib/rate-limit";
 
 /**
- * POST /api/auth/guest { email, displayName, phone?, consent }
+ * POST /api/auth/guest { email, displayName, phone, consent }
  *
  * Guest booking: creates a password-less client account for a new email and
  * returns a custom token so the browser is signed in immediately and can
@@ -21,7 +22,7 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
   const email = String(body.email ?? "").trim().toLowerCase();
   const displayName = String(body.displayName ?? "").trim();
-  const phone = String(body.phone ?? "").trim();
+  const phone = normalizeUsPhone(String(body.phone ?? ""));
   const consent = body.consent === true;
 
   if (!/^\S+@\S+\.\S+$/.test(email)) {
@@ -29,6 +30,12 @@ export async function POST(req: Request) {
   }
   if (displayName.length < 2) {
     return NextResponse.json({ error: "Enter your name." }, { status: 400 });
+  }
+  if (!phone) {
+    return NextResponse.json(
+      { error: "Enter a valid 10-digit US mobile number." },
+      { status: 400 },
+    );
   }
   if (!consent) {
     return NextResponse.json(

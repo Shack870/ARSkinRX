@@ -9,7 +9,7 @@ import { getStripe } from "@/lib/stripe";
  * POST /api/admin/payments/[id]/refund { amountCents? }
  * Manual refund. Issues a Stripe refund when the payment was real; for dev
  * payments it just records the refund. Note: clinic policy is no refunds within
- * 48 hours of the visit — that's enforced by policy/Terms, but admins can still
+ * 24 hours of the visit — that's enforced by policy/Terms, but admins can still
  * override here when warranted.
  */
 export async function POST(
@@ -29,7 +29,7 @@ export async function POST(
 
   const p = snap.data()!;
 
-  // Policy guardrail: no refunds within 48 hours of the visit unless the visit
+  // Policy guardrail: no refunds within 24 hours of the visit unless the visit
   // was cancelled by the provider/admin (refund-eligible) or the admin forces it.
   const apptSnap = await adminDb
     .collection(COLLECTIONS.appointments)
@@ -38,13 +38,13 @@ export async function POST(
   if (apptSnap.exists) {
     const start = apptSnap.get("start") as number;
     const refundEligible = apptSnap.get("refundEligible") === true;
-    const within48 = start - Date.now() < 48 * 60 * 60 * 1000;
-    if (within48 && !refundEligible && !body?.force) {
+    const within24 = start - Date.now() < 24 * 60 * 60 * 1000;
+    if (within24 && !refundEligible && !body?.force) {
       return NextResponse.json(
         {
-          error: "within_48h",
+          error: "within_24h",
           message:
-            "This visit is within 48 hours. Per policy refunds aren't normally issued — resend with force to override.",
+            "This visit is within 24 hours. Per policy refunds aren't normally issued — resend with force to override.",
         },
         { status: 409 },
       );

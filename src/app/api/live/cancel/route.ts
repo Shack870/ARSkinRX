@@ -2,15 +2,16 @@ import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase/admin";
 import { COLLECTIONS } from "@/lib/firebase/collections";
 import { verifyBearer } from "@/lib/api-auth";
+import { refundLiveRequest } from "@/lib/refunds-server";
+import { recomputeQueueForProvider } from "@/lib/live-queue";
 
 /**
  * POST /api/live/cancel { liveRequestId }
- * Patient stops searching. If they'd already paid, the request is flagged
- * refund-eligible for an admin to process.
+ * Patient stops searching / leaves the line. If they'd already paid and were
+ * never seen (searching or queued), the full amount is refunded automatically
+ * and recorded on the request.
  */
-export async function POST(
-  req: Request,
-) {
+export async function POST(req: Request) {
   const user = await verifyBearer(req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -31,10 +32,39 @@ export async function POST(
       { status: 409 },
     );
   }
+  if (status === "cancelled" || status === "expired" || status === "converted") {
+    return NextResponse.json({
+      ok: true,
+      status,
+      refundedCents: snap.get("refundedCents") ?? 0,
+    });
+  }
+
+  const paid = status === "searching" || status === "queued";
+  const now = Date.now();
   await ref.update({
     status: "cancelled",
-    refundEligible: status === "searching",
-    updatedAt: Date.now(),
+    cancelledAt: now,
+    refundEligible: paid,
+    offeredTo: null,
+    offerExpiresAt: null,
+    updatedAt: now,
   });
-  return NextResponse.json({ ok: true });
+
+  let refundedCents = 0;
+  if (paid) {
+    try {
+      const r = await refundLiveRequest(liveRequestId, {
+        reason: "patient_cancelled_before_visit",
+        actorId: user.uid,
+      });
+      refundedCents = r.amountCents;
+    } catch (err) {
+      console.error("[live/cancel] refund failed", liveRequestId, err);
+    }
+    const nurse = snap.get("queuedProviderId") as string | null;
+    if (nurse) await recomputeQueueForProvider(nurse).catch(() => {});
+  }
+
+  return NextResponse.json({ ok: true, status: "cancelled", refundedCents });
 }

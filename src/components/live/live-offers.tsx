@@ -4,7 +4,10 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, PhoneIncoming, Zap } from "lucide-react";
 import { authedFetch } from "@/lib/api-client";
-import { usePresence } from "@/components/live/presence-context";
+import {
+  holdPresenceForVisit,
+  usePresence,
+} from "@/components/live/presence-context";
 import { useToast } from "@/components/ui/toast";
 import { SERVICE_MAP } from "@/lib/services";
 import { formatCurrency } from "@/lib/utils";
@@ -16,6 +19,13 @@ interface Offer {
   serviceId: ServiceType;
   priceCents: number;
   offerExpiresAt: number;
+  /** Present when the patient has been waiting in this nurse's line. */
+  queuedWaitMs?: number;
+}
+
+function waitedLabel(ms: number) {
+  const m = Math.round(ms / 60_000);
+  return m < 1 ? "under a minute" : `${m} min`;
 }
 
 /** Plays a short two-tone bell (no audio asset needed). */
@@ -54,15 +64,16 @@ export function LiveOffers() {
   const router = useRouter();
   const toast = useToast();
   const { online, busy } = usePresence();
-  const [offer, setOffer] = React.useState<Offer | null>(null);
+  const [polled, setOffer] = React.useState<Offer | null>(null);
   const [working, setWorking] = React.useState(false);
-  const [now, setNow] = React.useState(Date.now());
+  const [now, setNow] = React.useState(() => Date.now());
   const lastIdRef = React.useRef<string | null>(null);
+  // An offer is only meaningful while we're live and free.
+  const offer = online && !busy ? polled : null;
 
   // Poll for the request currently offered to me.
   React.useEffect(() => {
     if (!online || busy) {
-      setOffer(null);
       lastIdRef.current = null;
       return;
     }
@@ -113,6 +124,7 @@ export function LiveOffers() {
       });
       const d = await res.json();
       if (res.ok && d.appointmentId) {
+        holdPresenceForVisit();
         router.push(`/visit/${d.appointmentId}`);
         return;
       }
@@ -156,13 +168,19 @@ export function LiveOffers() {
             <PhoneIncoming className="h-7 w-7 animate-pulse" />
           </span>
           <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[#f3e7c2] px-2.5 py-1 text-xs font-semibold text-[#8a6d12]">
-            <Zap className="h-3.5 w-3.5" /> No-Wait Live request
+            <Zap className="h-3.5 w-3.5" />{" "}
+            {offer.queuedWaitMs !== undefined
+              ? `Next in line — waiting ${waitedLabel(offer.queuedWaitMs)}`
+              : "No-Wait Live request"}
           </p>
           <h2 className="mt-3 text-xl font-semibold tracking-tight">
             {service?.name ?? "Live visit"}
           </h2>
           <p className="mt-1 text-[var(--muted-foreground)]">
-            A patient is waiting. You&apos;ll earn{" "}
+            {offer.queuedWaitMs !== undefined
+              ? "This paid patient has been holding a place in your line. "
+              : "A patient is waiting. "}
+            You&apos;ll earn{" "}
             <span className="font-semibold text-[var(--foreground)]">
               {formatCurrency(earn)}
             </span>{" "}

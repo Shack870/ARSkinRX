@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { WaitingBadge } from "@/components/visit/waiting-badge";
 import { LiveBadge } from "@/components/live/live-badge";
+import { holdPresenceForVisit } from "@/components/live/presence-context";
 import type { Appointment } from "@/lib/types";
 
 export default function SchedulePage() {
@@ -100,7 +101,7 @@ function Section({
                   {showJoin && joinable && a.status !== "completed" && (
                     <>
                       <WaitingBadge appointmentId={a.id} peer="client" />
-                      <Link href={`/visit/${a.id}`}>
+                      <Link href={`/visit/${a.id}`} onClick={holdPresenceForVisit}>
                         <Button size="sm">
                           <Video className="h-4 w-4" /> Enter room
                         </Button>

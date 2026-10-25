@@ -58,11 +58,11 @@ function Detail({ id }: { id: string }) {
 
   async function cancelVisit() {
     if (!appointment) return;
-    const within48 = appointment.start - Date.now() < 48 * 60 * 60 * 1000;
+    const within24 = appointment.start - Date.now() < 24 * 60 * 60 * 1000;
     const ok = await confirm({
       title: "Cancel this visit?",
-      message: within48
-        ? "It's within 48 hours, so it isn't eligible for a refund per our policy."
+      message: within24
+        ? "It's within 24 hours, so it isn't eligible for a refund per our policy."
         : "You'll be eligible for a refund.",
       confirmLabel: "Cancel visit",
       cancelLabel: "Keep visit",
@@ -140,7 +140,13 @@ function Detail({ id }: { id: string }) {
         </Card>
       )}
 
-      <FinishAccountCard />
+      <FinishAccountCard
+        title={
+          search.get("paid")
+            ? "Payment received ✓ — create your password & confirm your date of birth"
+            : undefined
+        }
+      />
 
       <Card className="p-6">
         <div className="flex items-start justify-between gap-3">
@@ -306,7 +312,7 @@ function Detail({ id }: { id: string }) {
               {cancelling ? "Cancelling…" : "Cancel this visit"}
             </button>
             <p className="text-xs text-[var(--muted-foreground)]">
-              Free reschedule anytime · no refunds within 48 hours
+              Free reschedule anytime · no refunds within 24 hours
             </p>
           </div>
         )}

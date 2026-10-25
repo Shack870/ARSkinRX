@@ -65,7 +65,7 @@ const FAQS = [
   },
   {
     q: "What if I miss my appointment?",
-    a: "No problem — you can reschedule once for free. Note that refunds aren't available within 48 hours of a scheduled visit.",
+    a: "No problem — you can reschedule once for free. Note that refunds aren't available within 24 hours of a scheduled visit.",
   },
   {
     q: "How much does it cost?",

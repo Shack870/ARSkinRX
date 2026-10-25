@@ -3,6 +3,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
 import { COLLECTIONS } from "@/lib/firebase/collections";
 import { verifyBearer } from "@/lib/api-auth";
+import { tickLiveQueue } from "@/lib/live-queue";
 
 /** Grace for clock skew so the nurse can close out right as the window ends. */
 const END_SKEW_MS = 60 * 1000;
@@ -60,6 +61,9 @@ export async function POST(
     meta: { clientId: a.clientId, providerId: a.providerId },
     timestamp: FieldValue.serverTimestamp(),
   });
+
+  // The scheduled block is gone — let queued live patients move up / ring.
+  await tickLiveQueue().catch(() => {});
 
   return NextResponse.json({ ok: true });
 }
