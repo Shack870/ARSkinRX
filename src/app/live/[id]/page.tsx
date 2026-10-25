@@ -4,12 +4,14 @@ import * as React from "react";
 import { Suspense, use } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Loader2, Radar, CalendarPlus, AlertTriangle } from "lucide-react";
+import { Loader2, Radar, CalendarPlus, AlertTriangle, Video, Pill } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLiveRequest } from "@/lib/hooks";
 import { authedFetch } from "@/lib/api-client";
 import { SERVICE_MAP } from "@/lib/services";
 import { Button } from "@/components/ui/button";
+import { FinishAccountCard } from "@/components/finish-account-card";
+import { usePaymentResume } from "@/lib/use-payment-resume";
 
 export default function LivePage({
   params,
@@ -27,16 +29,20 @@ export default function LivePage({
 function LiveInner({ id }: { id: string }) {
   const router = useRouter();
   const search = useSearchParams();
-  const { user, loading: authLoading } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const { request, loading } = useLiveRequest(id);
   const verifiedRef = React.useRef(false);
   const [cancelling, setCancelling] = React.useState(false);
+  // Guest who paid but has no session here (other origin/device): resume
+  // from the paid Stripe session before falling back to login.
+  const resuming = usePaymentResume();
+  const needsPassword = profile?.passwordSet === false;
 
   React.useEffect(() => {
-    if (!authLoading && !user) {
+    if (!authLoading && !resuming && !user) {
       router.replace(`/login?next=${encodeURIComponent(`/live/${id}`)}`);
     }
-  }, [authLoading, user, router, id]);
+  }, [authLoading, resuming, user, router, id]);
 
   // Verify payment on return from Stripe.
   React.useEffect(() => {
@@ -68,12 +74,14 @@ function LiveInner({ id }: { id: string }) {
     return () => clearInterval(interval);
   }, [request?.status, id]);
 
-  // Redirect into the visit once matched.
+  // Redirect into the visit once matched — unless this is a brand-new guest
+  // mid-way through setting a password; then we show a Join button instead so
+  // the redirect doesn't yank the form away.
   React.useEffect(() => {
-    if (request?.status === "matched" && request.appointmentId) {
+    if (request?.status === "matched" && request.appointmentId && !needsPassword) {
       router.replace(`/visit/${request.appointmentId}`);
     }
-  }, [request?.status, request?.appointmentId, router]);
+  }, [request?.status, request?.appointmentId, needsPassword, router]);
 
   async function cancel() {
     setCancelling(true);
@@ -92,15 +100,41 @@ function LiveInner({ id }: { id: string }) {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-[var(--primary-soft)] to-[var(--background)] px-4 text-center">
-      {authLoading || loading || !request ? (
+      {authLoading || resuming || loading || !request ? (
         <Loader2 className="h-7 w-7 animate-spin text-[var(--primary)]" />
       ) : request.status === "matched" ? (
-        <>
-          <Loader2 className="h-7 w-7 animate-spin text-[var(--primary)]" />
-          <p className="mt-4 text-[var(--muted-foreground)]">
-            Connecting you to your nurse…
-          </p>
-        </>
+        needsPassword && request.appointmentId ? (
+          <div className="w-full max-w-md">
+            <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+              <Video className="h-7 w-7" />
+            </span>
+            <h1 className="mt-5 text-2xl font-semibold tracking-tight">
+              Your nurse is ready for you
+            </h1>
+            <p className="mt-2 text-[var(--muted-foreground)]">
+              Join now — your nurse is waiting in the room.
+            </p>
+            <Link href={`/visit/${request.appointmentId}`} className="mt-5 inline-block w-full">
+              <Button size="lg" className="w-full">
+                <Video className="h-4 w-4" /> Join video visit
+              </Button>
+            </Link>
+            <div className="mt-6 text-left">
+              <FinishAccountCard />
+            </div>
+            <p className="mt-3 text-xs text-[var(--muted-foreground)]">
+              You can set your password after the visit instead — it&apos;ll be
+              waiting on your dashboard.
+            </p>
+          </div>
+        ) : (
+          <>
+            <Loader2 className="h-7 w-7 animate-spin text-[var(--primary)]" />
+            <p className="mt-4 text-[var(--muted-foreground)]">
+              Connecting you to your nurse…
+            </p>
+          </>
+        )
       ) : request.status === "expired" || request.status === "cancelled" ? (
         <div className="max-w-sm">
           <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[var(--accent-soft)] text-[var(--accent)]">
@@ -149,6 +183,18 @@ function LiveInner({ id }: { id: string }) {
             </span>{" "}
             visit. Hang tight — this is usually quick.
           </p>
+          <p className="mt-3 inline-flex items-center gap-1.5 text-xs text-[var(--muted-foreground)]">
+            <Pill className="h-3.5 w-3.5 text-[var(--tint-gold-fg)]" />
+            Prescription included in your visit price
+          </p>
+          {needsPassword && (
+            <div className="mt-6 text-left">
+              <p className="mb-2 text-sm font-medium">
+                While you wait — finish your account
+              </p>
+              <FinishAccountCard />
+            </div>
+          )}
           <button
             onClick={cancel}
             disabled={cancelling}

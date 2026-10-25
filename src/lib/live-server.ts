@@ -156,6 +156,51 @@ export async function orchestrateLiveRequest(
   return out;
 }
 
+/**
+ * Payment landed (verify-on-return or webhook): flip the request to searching
+ * and immediately offer it to the first nurse. Idempotent — a second caller
+ * finds the request already past pending_payment and just re-runs the
+ * orchestrator, which is a no-op while an offer is active.
+ */
+export async function markLivePaidAndMatch(
+  liveRequestId: string,
+  stripePaymentIntentId: string | null,
+): Promise<OrchestrateResult> {
+  const ref = adminDb.collection(COLLECTIONS.liveRequests).doc(liveRequestId);
+  await adminDb.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists || snap.get("status") !== "pending_payment") return;
+    const now = Date.now();
+    tx.update(ref, {
+      status: "searching",
+      stripePaymentIntentId,
+      expiresAt: now + LIVE_SEARCH_MS,
+      // Restart the safety clock from payment, not from when the form was filled.
+      createdAt: now,
+      updatedAt: now,
+    });
+  });
+  return orchestrateLiveRequest(liveRequestId);
+}
+
+/**
+ * Advance any searching request whose current offer has lapsed (or that has
+ * no offer yet). Called from the nurses' incoming poll so round-robin keeps
+ * moving even if the patient's tab is closed or backgrounded.
+ */
+export async function advanceStaleLiveRequests(): Promise<void> {
+  const now = Date.now();
+  const snap = await adminDb
+    .collection(COLLECTIONS.liveRequests)
+    .where("status", "==", "searching")
+    .get();
+  await Promise.all(
+    snap.docs
+      .filter((d) => !d.get("offeredTo") || (d.get("offerExpiresAt") ?? 0) <= now)
+      .map((d) => orchestrateLiveRequest(d.id).catch(() => {})),
+  );
+}
+
 /** The live request currently offered to this provider (their turn), if any. */
 export async function incomingForProvider(
   providerId: string,
@@ -173,6 +218,8 @@ export async function incomingForProvider(
   ) {
     return [];
   }
+
+  await advanceStaleLiveRequests();
 
   const snap = await adminDb
     .collection(COLLECTIONS.liveRequests)

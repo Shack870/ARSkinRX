@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Loader2, LogOut, Menu, X, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
+import { usePaymentResume } from "@/lib/use-payment-resume";
 import { cn } from "@/lib/utils";
 import type { Role } from "@/lib/types";
 
@@ -45,15 +46,19 @@ export function DashboardShell({
     setMobileOpen(false);
   }
 
+  // Returning from Stripe without a session (guest on another origin/device):
+  // try to resume the paying account before bouncing to login.
+  const resuming = usePaymentResume();
+
   React.useEffect(() => {
-    if (loading) return;
+    if (loading || resuming) return;
     if (!user) {
       router.replace(`/login?next=${encodeURIComponent(pathname)}`);
     } else if (userRole && !allowed) {
       // Logged in but wrong role for this area.
       router.replace("/");
     }
-  }, [loading, user, userRole, allowed, router, pathname]);
+  }, [loading, resuming, user, userRole, allowed, router, pathname]);
 
   if (loading || !user || (userRole && !allowed)) {
     return (

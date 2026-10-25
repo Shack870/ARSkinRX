@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 
 const APP_URL =
   process.env.NEXT_PUBLIC_APP_URL ??
-  "https://arskin--arskinrx.us-east4.hosted.app";
+  "https://arskinrx.com";
 
 const TITLE = "ARSkinRX — Virtual Skin Care Clinic | Arkansas";
 const DESCRIPTION =

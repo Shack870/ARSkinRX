@@ -3,7 +3,7 @@ import { adminDb } from "@/lib/firebase/admin";
 import { COLLECTIONS } from "@/lib/firebase/collections";
 import { verifyBearer } from "@/lib/api-auth";
 import { getStripe } from "@/lib/stripe";
-import { LIVE_SEARCH_MS } from "@/lib/live-server";
+import { markLivePaidAndMatch } from "@/lib/live-server";
 
 /**
  * POST /api/live/verify { liveRequestId, sessionId }
@@ -40,12 +40,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Payment not completed" }, { status: 402 });
   }
 
-  await ref.update({
-    status: "searching",
-    stripePaymentIntentId:
-      typeof session.payment_intent === "string" ? session.payment_intent : null,
-    expiresAt: Date.now() + LIVE_SEARCH_MS,
-    updatedAt: Date.now(),
-  });
-  return NextResponse.json({ ok: true });
+  const result = await markLivePaidAndMatch(
+    liveRequestId,
+    typeof session.payment_intent === "string" ? session.payment_intent : null,
+  );
+  return NextResponse.json({ ok: true, ...result });
 }

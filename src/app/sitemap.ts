@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { SERVICES } from "@/lib/services";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://arskin--arskinrx.us-east4.hosted.app";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://arskinrx.com";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();

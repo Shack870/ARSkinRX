@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requestOrigin } from "@/lib/app-url";
 import { adminDb } from "@/lib/firebase/admin";
 import { COLLECTIONS } from "@/lib/firebase/collections";
 import { verifyBearer } from "@/lib/api-auth";
@@ -8,7 +9,6 @@ import { LIVE_SEARCH_MS } from "@/lib/live-server";
 import { rateLimit } from "@/lib/rate-limit";
 import type { ServiceType } from "@/lib/types";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
 /**
  * POST /api/live/checkout { liveRequestId }
@@ -16,6 +16,7 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
  * matching immediately; with Stripe it returns a Checkout URL.
  */
 export async function POST(req: Request) {
+  const origin = requestOrigin(req);
   const limited = rateLimit(req, "live-checkout", 20);
   if (limited) return limited;
 
@@ -34,7 +35,7 @@ export async function POST(req: Request) {
   }
   const lr = snap.data()!;
   if (lr.status !== "pending_payment") {
-    return NextResponse.json({ url: `${APP_URL}/live/${liveRequestId}` });
+    return NextResponse.json({ url: `${origin}/live/${liveRequestId}` });
   }
 
   const service = getService(lr.serviceId as ServiceType);
@@ -49,7 +50,7 @@ export async function POST(req: Request) {
     });
     return NextResponse.json({
       devBypass: true,
-      url: `${APP_URL}/live/${liveRequestId}`,
+      url: `${origin}/live/${liveRequestId}`,
     });
   }
 
@@ -69,8 +70,8 @@ export async function POST(req: Request) {
       },
     ],
     metadata: { liveRequestId },
-    success_url: `${APP_URL}/live/${liveRequestId}?paid=1&session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${APP_URL}/book?canceled=1`,
+    success_url: `${origin}/live/${liveRequestId}?paid=1&session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${origin}/book?canceled=1`,
   });
 
   return NextResponse.json({ url: session.url });

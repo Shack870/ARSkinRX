@@ -4,6 +4,7 @@ import { adminDb } from "@/lib/firebase/admin";
 import { COLLECTIONS } from "@/lib/firebase/collections";
 import { getStripe, isConnectAccountReady } from "@/lib/stripe";
 import { confirmAppointmentBooked } from "@/lib/appointments-server";
+import { markLivePaidAndMatch } from "@/lib/live-server";
 
 // Stripe needs the raw request body to verify the signature.
 export const runtime = "nodejs";
@@ -62,6 +63,15 @@ export async function POST(req: Request) {
           // back to it when we don't pass one here.
           payoutVia: session.metadata?.payoutVia === "stripe" ? "stripe" : "manual",
         });
+      }
+      const liveRequestId = session.metadata?.liveRequestId;
+      if (liveRequestId && session.payment_status === "paid") {
+        // Start matching the nurse even if the patient never lands back on
+        // our page (closed tab, lost session, different origin).
+        await markLivePaidAndMatch(
+          liveRequestId,
+          typeof session.payment_intent === "string" ? session.payment_intent : null,
+        );
       }
       break;
     }

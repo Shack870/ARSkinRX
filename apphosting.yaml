@@ -40,7 +40,7 @@ env:
     value: 1:229240859988:web:c244886d477934a3492cc1
     availability: [BUILD, RUNTIME]
   - variable: NEXT_PUBLIC_APP_URL
-    value: https://arskin--arskinrx.us-east4.hosted.app
+    value: https://arskinrx.com
     availability: [BUILD, RUNTIME]
 
   # Server-side Admin SDK credentials (stored in Cloud Secret Manager).

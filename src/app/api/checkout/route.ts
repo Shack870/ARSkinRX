@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requestOrigin } from "@/lib/app-url";
 import { adminDb } from "@/lib/firebase/admin";
 import { COLLECTIONS } from "@/lib/firebase/collections";
 import { verifyBearer } from "@/lib/api-auth";
@@ -8,7 +9,6 @@ import { confirmAppointmentBooked } from "@/lib/appointments-server";
 import { rateLimit } from "@/lib/rate-limit";
 import type { ServiceType } from "@/lib/types";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
 /**
  * POST /api/checkout { appointmentId }
@@ -19,6 +19,7 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
  *   flow is testable in development, and returns a redirect URL.
  */
 export async function POST(req: Request) {
+  const origin = requestOrigin(req);
   const limited = rateLimit(req, "checkout", 20);
   if (limited) return limited;
 
@@ -39,7 +40,7 @@ export async function POST(req: Request) {
   if (appt.status !== "pending_payment") {
     // Already booked — just send them to the appointment.
     return NextResponse.json({
-      url: `${APP_URL}/dashboard/appointments/${appointmentId}`,
+      url: `${origin}/dashboard/appointments/${appointmentId}`,
     });
   }
   if ((appt.holdExpiresAt ?? 0) < Date.now()) {
@@ -61,7 +62,7 @@ export async function POST(req: Request) {
     });
     return NextResponse.json({
       devBypass: true,
-      url: `${APP_URL}/dashboard/appointments/${appointmentId}?paid=dev`,
+      url: `${origin}/dashboard/appointments/${appointmentId}?paid=dev`,
     });
   }
 
@@ -99,8 +100,8 @@ export async function POST(req: Request) {
         }
       : undefined,
     metadata: { appointmentId, payoutVia: autoSplit ? "stripe" : "manual" },
-    success_url: `${APP_URL}/dashboard/appointments/${appointmentId}?paid=1&session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${APP_URL}/dashboard/appointments/${appointmentId}?canceled=1`,
+    success_url: `${origin}/dashboard/appointments/${appointmentId}?paid=1&session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${origin}/dashboard/appointments/${appointmentId}?canceled=1`,
   });
 
   return NextResponse.json({ url: session.url });
