@@ -14,6 +14,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/legal/terms",
     "/legal/privacy",
     "/legal/consent",
+    "/legal/delete-account",
   ];
   const servicePaths = SERVICES.map((s) => `/services/${s.slug}`);
 

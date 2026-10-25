@@ -39,6 +39,7 @@ export function SiteFooter() {
                 ["Terms & Conditions", "/legal/terms"],
                 ["Privacy & HIPAA", "/legal/privacy"],
                 ["Telehealth consent", "/legal/consent"],
+                ["Delete your account", "/legal/delete-account"],
               ]}
             />
           </div>
