@@ -77,19 +77,20 @@ export async function sendSms(opts: { to: string; body: string }): Promise<void>
   const sid = process.env.TWILIO_ACCOUNT_SID;
   const token = process.env.TWILIO_AUTH_TOKEN;
   const from = process.env.TWILIO_FROM_NUMBER;
-  if (!sid || !token || !from) {
+  // Prefer the Messaging Service: it routes through the registered A2P 10DLC
+  // campaign and handles STOP/HELP keywords automatically.
+  const service = process.env.TWILIO_MESSAGING_SERVICE_SID;
+  if (!sid || !token || (!from && !service)) {
     if (process.env.NODE_ENV !== "production") {
       console.log(`[notify:sms skipped] -> ${opts.to}: ${opts.body}`);
     }
     return;
   }
   try {
-    const params = new URLSearchParams({
-      To: opts.to,
-      From: from,
-      Body: opts.body,
-    });
-    await fetch(
+    const params = new URLSearchParams({ To: opts.to, Body: opts.body });
+    if (service) params.set("MessagingServiceSid", service);
+    else if (from) params.set("From", from);
+    const res = await fetch(
       `https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`,
       {
         method: "POST",
@@ -100,6 +101,9 @@ export async function sendSms(opts: { to: string; body: string }): Promise<void>
         body: params.toString(),
       },
     );
+    if (!res.ok) {
+      console.error("sendSms rejected", res.status, await res.text());
+    }
   } catch (e) {
     console.error("sendSms failed", e);
   }

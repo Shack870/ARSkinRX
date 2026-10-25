@@ -23,6 +23,8 @@ export async function findOrCreateClient(opts: {
   displayName?: string;
   phone?: string;
   consent?: boolean;
+  /** Patient checked the (unchecked-by-default) SMS opt-in box. */
+  smsOptIn?: boolean;
   createdVia: "booking" | "admin";
 }): Promise<ClientLookup> {
   const email = opts.email.trim().toLowerCase();
@@ -79,8 +81,8 @@ export async function findOrCreateClient(opts: {
     phone,
     role: "client",
     state: "AR",
-    smsOptIn: false,
-    smsOptInAt: null,
+    smsOptIn: opts.smsOptIn === true,
+    smsOptInAt: opts.smsOptIn === true ? now : null,
     consentAcceptedAt: opts.consent ? now : null,
     passwordSet: false,
     createdVia: opts.createdVia,

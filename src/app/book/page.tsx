@@ -75,6 +75,7 @@ function BookInner() {
     email: "",
     phone: "",
     consent: false,
+    smsOptIn: false,
   });
   const [guestPassword, setGuestPassword] = React.useState("");
   const [existingAccount, setExistingAccount] = React.useState(false);
@@ -246,6 +247,7 @@ function BookInner() {
           displayName: guest.displayName.trim(),
           phone,
           consent: true,
+          smsOptIn: guest.smsOptIn,
         }),
       });
       const data = await res.json();
@@ -650,6 +652,33 @@ function BookInner() {
                         </Link>
                         . ARSkinRX serves Arkansas residents and is not for
                         emergencies.
+                      </span>
+                    </label>
+                    <label className="flex cursor-pointer items-start gap-3 rounded-[var(--radius-md)] border border-[var(--border)] p-3">
+                      <span className="mt-0.5">
+                        <Checkbox
+                          checked={guest.smsOptIn}
+                          onCheckedChange={(v) =>
+                            setGuest({ ...guest, smsOptIn: v === true })
+                          }
+                        />
+                      </span>
+                      <span className="text-xs leading-relaxed text-[var(--muted-foreground)]">
+                        Text me appointment updates (booking confirmation,
+                        reminders, and when my nurse is ready). By checking this
+                        box, I agree to receive automated SMS messages from
+                        ARSkinRX at the number above. Consent is not a condition
+                        of purchase. Up to 4 msgs per visit; message &amp; data
+                        rates may apply. Reply <strong>STOP</strong> to
+                        unsubscribe or <strong>HELP</strong> for help. See our{" "}
+                        <Link href="/legal/privacy" target="_blank" className="text-[var(--primary)] underline">
+                          Privacy Policy
+                        </Link>{" "}
+                        and{" "}
+                        <Link href="/legal/terms" target="_blank" className="text-[var(--primary)] underline">
+                          Terms
+                        </Link>
+                        .
                       </span>
                     </label>
                   </div>

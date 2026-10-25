@@ -107,6 +107,18 @@ env:
   - variable: NOTIFY_FROM_EMAIL
     value: "ARSkinRX <care@arskinrx.com>"
     availability: [RUNTIME]
+  - variable: TWILIO_ACCOUNT_SID
+    secret: TWILIO_ACCOUNT_SID
+    availability: [RUNTIME]
+  - variable: TWILIO_AUTH_TOKEN
+    secret: TWILIO_AUTH_TOKEN
+    availability: [RUNTIME]
+  - variable: TWILIO_FROM_NUMBER
+    value: "+15012904071"
+    availability: [RUNTIME]
+  - variable: TWILIO_MESSAGING_SERVICE_SID
+    value: "MGc0a22d97d1224af0aa93461757371919"
+    availability: [RUNTIME]
   - variable: TURN_URLS
     value: "turn:free.expressturn.com:3478,turn:free.expressturn.com:3478?transport=tcp"
     availability: [RUNTIME]

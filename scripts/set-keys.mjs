@@ -29,6 +29,7 @@ const SPECS = {
   TWILIO_ACCOUNT_SID: "secret",
   TWILIO_AUTH_TOKEN: "secret",
   TWILIO_FROM_NUMBER: "value",
+  TWILIO_MESSAGING_SERVICE_SID: "value",
   TURN_URLS: "value",
   TURN_USERNAME: "secret",
   TURN_CREDENTIAL: "secret",

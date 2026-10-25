@@ -54,8 +54,10 @@ export default function PrivacyPage() {
           any purchase. Message frequency varies, and message and data rates may
           apply. Reply <strong>STOP</strong> at any time to unsubscribe or{" "}
           <strong>HELP</strong> for help. You can also turn texts off anytime in
-          your profile settings. We do not share your mobile number with third
-          parties for marketing.
+          your profile settings. We do not sell or share your SMS opt-in data,
+          mobile number, or personal information with third parties for
+          marketing purposes. Messages are sent by ARSkinRX (Barbara C.
+          Shackelford, APRN).
         </p>
       </LegalSection>
     </LegalShell>

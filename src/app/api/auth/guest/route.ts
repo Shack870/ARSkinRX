@@ -24,6 +24,7 @@ export async function POST(req: Request) {
   const displayName = String(body.displayName ?? "").trim();
   const phone = normalizeUsPhone(String(body.phone ?? ""));
   const consent = body.consent === true;
+  const smsOptIn = body.smsOptIn === true;
 
   if (!/^\S+@\S+\.\S+$/.test(email)) {
     return NextResponse.json({ error: "Enter a valid email." }, { status: 400 });
@@ -49,6 +50,7 @@ export async function POST(req: Request) {
     displayName,
     phone,
     consent,
+    smsOptIn,
     createdVia: "booking",
   });
 
