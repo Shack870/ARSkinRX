@@ -1,0 +1,50 @@
+{
+  "packageId": "com.arskinrx.app",
+  "host": "arskinrx.com",
+  "name": "ARSkinRX",
+  "launcherName": "ARSkinRX",
+  "display": "standalone",
+  "orientation": "default",
+  "themeColor": "#2f6f6a",
+  "themeColorDark": "#2f6f6a",
+  "navigationColor": "#2f6f6a",
+  "navigationColorDark": "#2f6f6a",
+  "navigationDividerColor": "#2f6f6a",
+  "navigationDividerColorDark": "#2f6f6a",
+  "backgroundColor": "#ffffff",
+  "enableNotifications": false,
+  "startUrl": "/",
+  "iconUrl": "https://arskinrx.com/icon-512.png",
+  "maskableIconUrl": "https://arskinrx.com/icon-maskable-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./arskinrx-upload.keystore",
+    "alias": "arskinrx"
+  },
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "appVersion": "1.0.0",
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://arskinrx.com/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://arskinrx.com/",
+  "minSdkVersion": 24,
+  "fingerprints": [
+    {
+      "name": "Play upload key",
+      "value": "92:1A:44:32:9B:FD:98:87:B3:16:C7:5F:5F:0D:1D:6F:0A:F6:10:61:03:0A:4F:9F:FF:66:A9:F9:BD:6C:7D:93"
+    }
+  ],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": [],
+  "protocolHandlers": [],
+  "fileHandlers": []
+}
