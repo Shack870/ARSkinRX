@@ -7,6 +7,7 @@ import { sendEmail, sendSms, reminderEmail } from "@/lib/notify";
 import { resolvePrefs } from "@/lib/notifications";
 import { formatTime, formatDateTime } from "@/lib/datetime";
 import { advanceStaleLiveRequests } from "@/lib/live-server";
+import { runWeeklyPayouts, type WeeklyPayoutResult } from "@/lib/payouts-server";
 import type { NoShowParty, ServiceType } from "@/lib/types";
 
 const HOUR = 60 * 60 * 1000;
@@ -24,6 +25,8 @@ export interface SweepResult {
   expiredHolds: number;
   /** False when the live-queue pass threw (logged); the rest still ran. */
   liveQueueOk: boolean;
+  /** Friday nurse payout run (no-op on other days / once per Friday). */
+  weeklyPayouts: WeeklyPayoutResult | null;
 }
 
 /**
@@ -172,5 +175,13 @@ export async function runSweep(): Promise<SweepResult> {
     console.error("[sweep] live queue pass failed", err);
   }
 
-  return { noShows, reminders, expiredHolds, liveQueueOk };
+  // 4) Weekly Friday payout run for approved, Stripe-onboarded nurses.
+  let weeklyPayouts: WeeklyPayoutResult | null = null;
+  try {
+    weeklyPayouts = await runWeeklyPayouts();
+  } catch (err) {
+    console.error("[sweep] weekly payouts failed", err);
+  }
+
+  return { noShows, reminders, expiredHolds, liveQueueOk, weeklyPayouts };
 }

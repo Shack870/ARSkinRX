@@ -25,6 +25,8 @@ export async function GET(
       uid: id,
       displayName: u.get("displayName") ?? "ARSkinRX Provider",
       bio: snap.get("bio") ?? "",
+      credentials: snap.get("credentials") ?? null,
+      yearsExperience: snap.get("yearsExperience") ?? null,
       photoURL: snap.get("photoURL") ?? null,
       conditions: snap.get("conditions") ?? [],
       ratingAvg: snap.get("ratingAvg") ?? 0,

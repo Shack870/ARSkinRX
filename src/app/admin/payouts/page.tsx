@@ -116,9 +116,10 @@ export default function AdminPayoutsPage() {
         <h1 className="text-2xl font-semibold tracking-tight">Provider payouts</h1>
         <p className="text-[var(--muted-foreground)]">
           Nurses on <strong>Auto (Stripe)</strong> get their share split off
-          automatically at payment — nothing to do here. Nurses on{" "}
-          <strong>Manual</strong> are paid by you (Zelle, check, ACH); record
-          it below to send them a confirmation.
+          automatically and Stripe deposits it to their bank every Friday —
+          nothing to do here. Nurses on <strong>Manual</strong> (including
+          you) are paid by hand (Zelle, check, ACH); record it below to send
+          them a confirmation.
         </p>
       </div>
 
@@ -262,7 +263,7 @@ export default function AdminPayoutsPage() {
                       <p className="font-medium">{a.providerName}</p>
                       <p className="text-[var(--muted-foreground)]">
                         {a.visitCount} visit{a.visitCount > 1 ? "s" : ""} · paid
-                        out by Stripe
+                        out by Stripe every Friday
                       </p>
                     </div>
                     <span className="font-medium text-[var(--primary)]">

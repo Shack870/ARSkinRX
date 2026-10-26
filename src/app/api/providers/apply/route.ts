@@ -78,7 +78,10 @@ export async function POST(req: Request) {
   batch.set(providerRef, {
     uid,
     licenseNumber: data.licenseNumber,
+    credentials: data.credentials,
+    yearsExperience: data.yearsExperience,
     bio: data.bio,
+    photoURL: data.photoURL,
     conditions: data.conditions,
     attestations: {
       followsArkansasNursingRules: true,

@@ -5,6 +5,7 @@ import { COLLECTIONS } from "@/lib/firebase/collections";
 import { getStripe, isConnectAccountReady } from "@/lib/stripe";
 import { confirmAppointmentBooked } from "@/lib/appointments-server";
 import { markLivePaidAndMatch } from "@/lib/live-server";
+import { applyWeeklyPayoutSchedule } from "@/lib/payouts-server";
 
 // Stripe needs the raw request body to verify the signature.
 export const runtime = "nodejs";
@@ -84,10 +85,19 @@ export async function POST(req: Request) {
         .limit(1)
         .get();
       if (!snap.empty) {
+        const wasComplete = snap.docs[0].get("stripeOnboardingComplete") === true;
         await snap.docs[0].ref.update({
           stripeOnboardingComplete: complete,
           updatedAt: Date.now(),
         });
+        // First time the account becomes payable: pin weekly Friday payouts.
+        if (complete && !wasComplete) {
+          try {
+            await applyWeeklyPayoutSchedule(stripe, account.id);
+          } catch (err) {
+            console.error("[stripe/webhook] payout schedule", err);
+          }
+        }
       }
       break;
     }

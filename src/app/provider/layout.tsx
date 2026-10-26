@@ -13,6 +13,7 @@ import { DashboardShell, type NavItem } from "@/components/dashboard/dashboard-s
 import { IncomingLive } from "@/components/live/incoming-live";
 import { LiveOffers } from "@/components/live/live-offers";
 import { PresenceProvider } from "@/components/live/presence-context";
+import { ProviderSetupGate } from "@/components/provider/setup-gate";
 import { useAuth } from "@/lib/auth-context";
 
 const NAV: NavItem[] = [
@@ -44,7 +45,7 @@ export default function ProviderLayout({
       <PresenceProvider>
         <LiveOffers />
         <IncomingLive />
-        {children}
+        <ProviderSetupGate>{children}</ProviderSetupGate>
       </PresenceProvider>
     </DashboardShell>
   );

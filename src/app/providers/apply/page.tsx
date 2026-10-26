@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, Loader2, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ArrowRight, Camera, Loader2, ShieldCheck } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -14,10 +14,11 @@ import { Checkbox, CheckboxIndicator } from "@/components/ui/checkbox";
 import { Steps } from "@/components/ui/steps";
 import { useAuth } from "@/lib/auth-context";
 import { SERVICES } from "@/lib/services";
-import { providerApplicationSchema } from "@/lib/validation";
+import { uploadProviderPhoto } from "@/lib/storage";
+import { BIO_MIN_CHARS, providerApplicationSchema } from "@/lib/validation";
 import type { ServiceType } from "@/lib/types";
 
-const STEP_LABELS = ["Account", "Credentials", "Practice", "Attest"];
+const STEP_LABELS = ["Account", "Credentials", "Profile", "Photo", "Attest"];
 
 interface FormState {
   displayName: string;
@@ -25,6 +26,8 @@ interface FormState {
   password: string;
   phone: string;
   licenseNumber: string;
+  credentials: string;
+  yearsExperience: string;
   bio: string;
   conditions: ServiceType[];
   followsArkansasNursingRules: boolean;
@@ -38,6 +41,8 @@ const INITIAL: FormState = {
   password: "",
   phone: "",
   licenseNumber: "",
+  credentials: "",
+  yearsExperience: "",
   bio: "",
   conditions: [],
   followsArkansasNursingRules: false,
@@ -52,6 +57,29 @@ export default function ProviderApplyPage() {
   const [form, setForm] = React.useState<FormState>(INITIAL);
   const [error, setError] = React.useState<string | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
+  const [photo, setPhoto] = React.useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = React.useState<string | null>(null);
+
+  // Revoke the last object URL when the component unmounts.
+  const previewRef = React.useRef<string | null>(null);
+  React.useEffect(
+    () => () => {
+      if (previewRef.current) URL.revokeObjectURL(previewRef.current);
+    },
+    [],
+  );
+
+  function choosePhoto(file: File | undefined) {
+    setError(null);
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return setError("Please choose an image file.");
+    if (file.size > 5 * 1024 * 1024) return setError("Photo must be under 5 MB.");
+    if (previewRef.current) URL.revokeObjectURL(previewRef.current);
+    const url = URL.createObjectURL(file);
+    previewRef.current = url;
+    setPhoto(file);
+    setPhotoPreview(url);
+  }
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -77,12 +105,20 @@ export default function ProviderApplyPage() {
     if (step === 1) {
       if (form.licenseNumber.trim().length < 3)
         return "Enter your Arkansas license number.";
+      if (form.credentials.trim().length < 2)
+        return "Enter your credentials (e.g. APRN, FNP-C).";
+      const yrs = Number(form.yearsExperience);
+      if (form.yearsExperience.trim() === "" || !Number.isInteger(yrs) || yrs < 0 || yrs > 60)
+        return "Enter your years of experience as a whole number.";
     }
     if (step === 2) {
       if (form.conditions.length === 0)
         return "Select at least one condition you treat.";
-      if (form.bio.trim().length < 20)
-        return "Add a short bio (at least 20 characters).";
+      if (form.bio.trim().length < BIO_MIN_CHARS)
+        return `Your bio needs at least ${BIO_MIN_CHARS} characters so patients can get to know you.`;
+    }
+    if (step === 3) {
+      if (!photo) return "A profile photo is required.";
     }
     return null;
   }
@@ -109,11 +145,15 @@ export default function ProviderApplyPage() {
       return setError("Please confirm all three attestations to continue.");
     }
 
-    const payload = {
+    if (!photo) return setError("A profile photo is required.");
+
+    const base = {
       displayName: form.displayName,
       phone: form.phone,
       licenseNumber: form.licenseNumber,
-      bio: form.bio,
+      credentials: form.credentials.trim(),
+      yearsExperience: Number(form.yearsExperience),
+      bio: form.bio.trim(),
       conditions: form.conditions,
       attestations: {
         followsArkansasNursingRules: true as const,
@@ -121,7 +161,10 @@ export default function ProviderApplyPage() {
         agreesToTerms: true as const,
       },
     };
-    const check = providerApplicationSchema.safeParse(payload);
+    // Validate everything except the photo URL, which only exists after upload.
+    const check = providerApplicationSchema
+      .omit({ photoURL: true })
+      .safeParse(base);
     if (!check.success) {
       return setError(
         check.error.issues[0]?.message ?? "Please review your answers.",
@@ -131,6 +174,8 @@ export default function ProviderApplyPage() {
     setSubmitting(true);
     try {
       const user = await signUp(form.email, form.password, form.displayName);
+      const { url: photoURL } = await uploadProviderPhoto(user.uid, photo);
+      const payload = { ...base, photoURL };
       const token = await user.getIdToken();
       const res = await fetch("/api/providers/apply", {
         method: "POST",
@@ -236,6 +281,32 @@ export default function ProviderApplyPage() {
                     placeholder="APRN license #"
                   />
                 </div>
+                <div>
+                  <Label htmlFor="credentials">Credentials</Label>
+                  <Input
+                    id="credentials"
+                    value={form.credentials}
+                    onChange={(e) => update("credentials", e.target.value)}
+                    placeholder="APRN, FNP-C"
+                  />
+                  <p className="mt-1 text-xs text-[var(--muted-foreground)]">
+                    Shown after your name on your public profile.
+                  </p>
+                </div>
+                <div>
+                  <Label htmlFor="years">Years of experience</Label>
+                  <Input
+                    id="years"
+                    type="number"
+                    min={0}
+                    max={60}
+                    inputMode="numeric"
+                    value={form.yearsExperience}
+                    onChange={(e) => update("yearsExperience", e.target.value)}
+                    placeholder="8"
+                    className="max-w-[140px]"
+                  />
+                </div>
               </div>
             )}
 
@@ -267,18 +338,63 @@ export default function ProviderApplyPage() {
                   </div>
                 </div>
                 <div>
-                  <Label htmlFor="bio">Short bio for your profile</Label>
+                  <Label htmlFor="bio">Bio for your public profile</Label>
                   <Textarea
                     id="bio"
                     value={form.bio}
                     onChange={(e) => update("bio", e.target.value)}
-                    placeholder="Tell clients about your background and approach to care."
+                    className="min-h-[140px]"
+                    placeholder="Where you trained, how long you've practiced, what you love about skin care, and how you approach visits. Patients read this when choosing a nurse."
                   />
+                  <p className="mt-1 text-xs text-[var(--muted-foreground)]">
+                    {form.bio.trim().length} / {BIO_MIN_CHARS} characters minimum
+                  </p>
                 </div>
               </div>
             )}
 
             {step === 3 && (
+              <div className="space-y-4">
+                <p className="text-sm text-[var(--muted-foreground)]">
+                  Patients pick their nurse from a list — a clear, friendly
+                  headshot is required. Use a well-lit photo of your face,
+                  ideally in scrubs or professional attire.
+                </p>
+                <div className="flex items-center gap-5">
+                  <span className="flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[var(--primary-soft)] text-[var(--primary)]">
+                    {photoPreview ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={photoPreview}
+                        alt="Your profile photo"
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <Camera className="h-8 w-8" />
+                    )}
+                  </span>
+                  <div className="space-y-2">
+                    <label className="inline-flex">
+                      <span className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-[var(--radius-md)] bg-[var(--primary)] px-4 text-sm font-medium text-[var(--primary-foreground)] hover:opacity-90">
+                        <Camera className="h-4 w-4" />
+                        {photo ? "Change photo" : "Choose photo"}
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => choosePhoto(e.target.files?.[0])}
+                      />
+                    </label>
+                    <p className="text-xs text-[var(--muted-foreground)]">
+                      JPG or PNG, up to 5 MB.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {step === 4 && (
               <div className="space-y-4">
                 <p className="text-sm text-[var(--muted-foreground)]">
                   Please confirm the following to complete your application.

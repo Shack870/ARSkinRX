@@ -3,6 +3,7 @@ import { adminDb } from "@/lib/firebase/admin";
 import { COLLECTIONS } from "@/lib/firebase/collections";
 import { verifyBearer } from "@/lib/api-auth";
 import { getStripe, isConnectNotEnabledError } from "@/lib/stripe";
+import { WEEKLY_PAYOUT_SCHEDULE } from "@/lib/payouts-server";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
@@ -46,6 +47,8 @@ export async function POST(req: Request) {
           transfers: { requested: true },
         },
         business_type: "individual",
+        // Nurses are paid once a week, every Friday.
+        settings: { payouts: { schedule: WEEKLY_PAYOUT_SCHEDULE } },
         business_profile: {
           mcc: "8099", // Medical services, not elsewhere classified
           product_description:

@@ -16,6 +16,8 @@ interface PublicProvider {
   uid: string;
   displayName: string;
   bio: string;
+  credentials: string | null;
+  yearsExperience: number | null;
   photoURL: string | null;
   conditions: ServiceType[];
   ratingAvg: number;
@@ -86,7 +88,12 @@ export default function ProviderProfilePage({
                     {provider.displayName}
                   </h1>
                   <p className="text-sm text-[var(--muted-foreground)]">
-                    Arkansas-licensed nurse practitioner
+                    {provider.credentials
+                      ? `${provider.credentials} · Arkansas-licensed nurse practitioner`
+                      : "Arkansas-licensed nurse practitioner"}
+                    {provider.yearsExperience != null && provider.yearsExperience > 0
+                      ? ` · ${provider.yearsExperience} yr${provider.yearsExperience === 1 ? "" : "s"} experience`
+                      : ""}
                   </p>
                   {provider.ratingCount > 0 && (
                     <span className="mt-1 inline-flex items-center gap-1 text-sm text-[var(--muted-foreground)]">

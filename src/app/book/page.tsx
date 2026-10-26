@@ -42,6 +42,8 @@ interface PublicProvider {
   uid: string;
   displayName: string;
   bio: string;
+  credentials?: string | null;
+  yearsExperience?: number | null;
   photoURL?: string | null;
   conditions: ServiceType[];
   ratingAvg: number;
@@ -515,7 +517,14 @@ function BookInner() {
                           )}
                         </span>
                         <div className="min-w-0 flex-1">
-                          <p className="font-medium">{p.displayName}</p>
+                          <p className="font-medium">
+                            {p.displayName}
+                            {p.credentials ? (
+                              <span className="font-normal text-[var(--muted-foreground)]">
+                                , {p.credentials}
+                              </span>
+                            ) : null}
+                          </p>
                           <p className="line-clamp-2 text-sm text-[var(--muted-foreground)]">
                             {p.bio}
                           </p>

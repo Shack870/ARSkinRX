@@ -6,6 +6,7 @@ import {
   CalendarClock,
   CheckCircle2,
   Clock,
+  Pencil,
   Star,
   Video,
   Wallet,
@@ -13,10 +14,11 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import {
   useProviderAppointments,
+  useProviderAvailability,
   useProviderProfile,
 } from "@/lib/hooks";
 import { SERVICE_MAP } from "@/lib/services";
-import { formatDateTime, isToday } from "@/lib/datetime";
+import { WEEKDAYS, formatDateTime, isToday } from "@/lib/datetime";
 import { formatCurrency } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +35,7 @@ export default function ProviderOverview() {
   const { user, profile } = useAuth();
   const { profile: provider } = useProviderProfile(user?.uid);
   const { appointments, loading } = useProviderAppointments(user?.uid);
+  const { availability } = useProviderAvailability(user?.uid);
 
   const now = Date.now();
   const today = appointments.filter(
@@ -88,6 +91,8 @@ export default function ProviderOverview() {
 
       {provider?.status === "approved" && <PayoutSetupCard compact />}
 
+      <ScheduleCard availability={availability} />
+
       {provider?.status === "pending" && (
         <Card className="border-amber-200 bg-amber-50 p-4">
           <div className="flex items-start gap-3">
@@ -97,9 +102,9 @@ export default function ProviderOverview() {
                 Your application is under review
               </p>
               <p className="text-sm text-amber-700">
-                You&apos;ll be able to set availability and accept patients once
-                an ARSkinRX admin approves your credentials. You can finish
-                setting up your profile and availability in the meantime.
+                You&apos;ll be able to accept patients once an ARSkinRX admin
+                approves your credentials. Your schedule and profile are ready
+                to go — you can adjust them any time.
               </p>
             </div>
           </div>
@@ -163,6 +168,63 @@ export default function ProviderOverview() {
         )}
       </Card>
     </div>
+  );
+}
+
+function fmt12(t: string) {
+  const [h, m] = t.split(":").map(Number);
+  const suffix = h >= 12 ? "pm" : "am";
+  const hr = h % 12 === 0 ? 12 : h % 12;
+  return m ? `${hr}:${String(m).padStart(2, "0")} ${suffix}` : `${hr} ${suffix}`;
+}
+
+/** Compact weekly-hours summary with a one-tap path to change it. */
+function ScheduleCard({
+  availability,
+}: {
+  availability: ReturnType<typeof useProviderAvailability>["availability"];
+}) {
+  const windows = availability?.windows ?? [];
+  const byDay = WEEKDAYS.map((day, i) => ({
+    day,
+    slots: windows
+      .filter((w) => w.weekday === i)
+      .sort((a, b) => a.startTime.localeCompare(b.startTime)),
+  })).filter((d) => d.slots.length > 0);
+  const blackouts = availability?.blackoutDates?.length ?? 0;
+
+  return (
+    <Card className="p-5">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="font-semibold">Your weekly hours</h2>
+        <Link href="/provider/availability">
+          <Button size="sm" variant="outline">
+            <Pencil className="h-4 w-4" /> Edit schedule
+          </Button>
+        </Link>
+      </div>
+      {byDay.length === 0 ? (
+        <p className="text-sm text-[var(--muted-foreground)]">
+          No hours set yet — patients can&apos;t book you until you add some.
+        </p>
+      ) : (
+        <ul className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
+          {byDay.map((d) => (
+            <li key={d.day} className="flex justify-between gap-3">
+              <span className="font-medium">{d.day.slice(0, 3)}</span>
+              <span className="text-right text-[var(--muted-foreground)]">
+                {d.slots.map((s) => `${fmt12(s.startTime)}–${fmt12(s.endTime)}`).join(", ")}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {blackouts > 0 && (
+        <p className="mt-3 text-xs text-[var(--muted-foreground)]">
+          {blackouts} day{blackouts === 1 ? "" : "s"} off scheduled.
+        </p>
+      )}
+    </Card>
   );
 }
 

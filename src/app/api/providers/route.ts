@@ -43,6 +43,8 @@ export async function GET(req: Request) {
         uid: d.id,
         displayName: userSnap.get("displayName") ?? "ARSkinRX Provider",
         bio: p.bio ?? "",
+        credentials: p.credentials ?? null,
+        yearsExperience: p.yearsExperience ?? null,
         photoURL: p.photoURL ?? null,
         conditions: p.conditions ?? [],
         ratingAvg: p.ratingAvg ?? 0,

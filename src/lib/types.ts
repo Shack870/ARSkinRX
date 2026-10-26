@@ -97,6 +97,10 @@ export interface ProviderProfile {
   licenseNumber: string;
   bio: string;
   photoURL?: string;
+  /** Post-nominal credentials shown to patients, e.g. "APRN, FNP-C". */
+  credentials?: string;
+  /** Years in practice as an APRN. */
+  yearsExperience?: number;
   /** Which service lines this provider treats. */
   conditions: ServiceType[];
   /** Optional per-service price overrides, in cents. */

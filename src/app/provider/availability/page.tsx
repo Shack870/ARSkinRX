@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { doc, setDoc } from "firebase/firestore";
-import { CalendarOff, Loader2, Plus, Save, Trash2 } from "lucide-react";
+import { CalendarClock, CalendarOff, Loader2, Plus, Save, Trash2 } from "lucide-react";
 import { db } from "@/lib/firebase/client";
 import { COLLECTIONS } from "@/lib/firebase/collections";
 import { useAuth } from "@/lib/auth-context";
@@ -13,12 +14,36 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PROFILE_PATH, useProviderSetup } from "@/components/provider/setup-gate";
 import type { AvailabilityWindow } from "@/lib/types";
 
+const PRESET: AvailabilityWindow[] = [1, 2, 3, 4, 5].map((weekday) => ({
+  weekday,
+  startTime: "09:00",
+  endTime: "17:00",
+}));
+
+function toMinutes(t: string) {
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
+}
+
 export default function AvailabilityPage() {
+  return (
+    <React.Suspense fallback={null}>
+      <AvailabilityPageInner />
+    </React.Suspense>
+  );
+}
+
+function AvailabilityPageInner() {
   const { user } = useAuth();
   const toast = useToast();
+  const router = useRouter();
+  const search = useSearchParams();
+  const inSetup = search.get("setup") === "1";
   const { availability, loading } = useProviderAvailability(user?.uid);
+  const { hasProfile } = useProviderSetup(user?.uid);
   const [windows, setWindows] = React.useState<AvailabilityWindow[]>([]);
   const [timezone, setTimezone] = React.useState("America/Chicago");
   const [blackoutDates, setBlackoutDates] = React.useState<string[]>([]);
@@ -57,6 +82,19 @@ export default function AvailabilityPage() {
 
   async function save() {
     if (!user) return;
+    if (windows.length === 0) {
+      toast.error("Add at least one block of hours before saving.");
+      return;
+    }
+    const bad = windows.find(
+      (w) => !w.startTime || !w.endTime || toMinutes(w.endTime) <= toMinutes(w.startTime),
+    );
+    if (bad) {
+      toast.error(
+        `${WEEKDAYS[bad.weekday]}: end time must be after start time.`,
+      );
+      return;
+    }
     setSaving(true);
     try {
       await setDoc(doc(db, COLLECTIONS.availability, user.uid), {
@@ -67,6 +105,9 @@ export default function AvailabilityPage() {
         updatedAt: Date.now(),
       });
       toast.success("Availability saved");
+      if (inSetup) {
+        router.replace(hasProfile ? "/provider" : `${PROFILE_PATH}?setup=1`);
+      }
     } catch {
       toast.error("Couldn't save availability");
     } finally {
@@ -80,9 +121,36 @@ export default function AvailabilityPage() {
         <h1 className="text-2xl font-semibold tracking-tight">Availability</h1>
         <p className="text-[var(--muted-foreground)]">
           Set the weekly hours you&apos;re open for visits. Patients can only
-          book inside these windows.
+          book inside these windows. You can come back and change this any
+          time.
         </p>
       </div>
+
+      {(inSetup || (!loading && !availability)) && (
+        <Card className="border-[var(--primary)]/40 bg-[var(--primary-soft)] p-4">
+          <div className="flex items-start gap-3">
+            <CalendarClock className="mt-0.5 h-5 w-5 text-[var(--primary)]" />
+            <div className="flex-1">
+              <p className="font-medium">Set your schedule to get started</p>
+              <p className="text-sm text-[var(--muted-foreground)]">
+                Before you can take visits, tell us when you&apos;re available.
+                Add hours for each day you work, then save. Not sure yet? Start
+                with a standard week and adjust later.
+              </p>
+              {windows.length === 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-3"
+                  onClick={() => setWindows(PRESET)}
+                >
+                  <Plus className="h-4 w-4" /> Use Mon–Fri, 9 am–5 pm
+                </Button>
+              )}
+            </div>
+          </div>
+        </Card>
+      )}
 
       <Card className="p-6">
         <div className="mb-6 max-w-xs">
@@ -205,14 +273,19 @@ export default function AvailabilityPage() {
       </Card>
 
       <div className="flex items-center gap-3">
-        <Button onClick={save} disabled={saving}>
+        <Button onClick={save} disabled={saving || loading}>
           {saving ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <Save className="h-4 w-4" />
           )}
-          Save availability
+          {inSetup ? "Save and continue" : "Save availability"}
         </Button>
+        {windows.length === 0 && !loading && (
+          <p className="text-sm text-[var(--muted-foreground)]">
+            Add at least one block of hours.
+          </p>
+        )}
       </div>
     </div>
   );

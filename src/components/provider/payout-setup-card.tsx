@@ -71,7 +71,7 @@ function PayoutSetupCardInner({ compact, className }: PayoutSetupCardProps) {
       if (d.onboarded) {
         toast.success(
           "Payouts active",
-          "Your share of each visit now goes straight to your bank or debit card.",
+          "Your share of each visit is deposited to your bank or debit card every Friday.",
         );
       } else if (d.hasAccount) {
         toast.info(
@@ -180,10 +180,10 @@ function PayoutSetupCardInner({ compact, className }: PayoutSetupCardProps) {
                 <Badge variant="success">Auto (Stripe)</Badge>
               </h2>
               <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-                Your share of every paid visit is sent to your bank or debit
-                card automatically by Stripe — no waiting on a manual payout.
-                Stripe also handles your year-end 1099. We never see your
-                banking details.
+                Your share of every paid visit goes to your Stripe balance
+                automatically, and Stripe deposits it to your bank or debit
+                card once a week, every Friday. Stripe also handles your
+                year-end 1099. We never see your banking details.
               </p>
             </div>
           </div>
@@ -216,9 +216,10 @@ function PayoutSetupCardInner({ compact, className }: PayoutSetupCardProps) {
               <Badge variant="warning">Manual for now</Badge>
             </h2>
             <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-              Get paid automatically to your bank or debit card via Stripe. We
-              never see your banking details — Stripe collects them securely,
-              deposits your share of each visit, and handles your 1099.
+              Get paid automatically to your bank or debit card via Stripe,
+              once a week every Friday. We never see your banking details —
+              Stripe collects them securely, deposits your share of each
+              visit, and handles your 1099.
             </p>
             {hasAccount && requirementsDue.length > 0 && (
               <p className="mt-2 text-xs text-[var(--muted-foreground)]">
