@@ -198,7 +198,7 @@ export async function POST(req: Request) {
         html: `<p>${msg}</p>${note ? `<p>Note: ${note}</p>` : ""}`,
       });
     if (phone && u.get("smsOptIn") === true) {
-      await sendSms({ to: phone, body: msg });
+      await sendSms({ to: phone, body: `${msg} Reply STOP to opt out.` });
     }
   } catch {
     // non-critical
