@@ -6,6 +6,7 @@ const LABELS: Record<string, string> = {
   medications: "Current medications",
   allergies: "Allergies",
   pregnant: "Pregnant / breastfeeding",
+  pharmacy: "Pharmacy",
 };
 
 const PREGNANT_LABELS: Record<string, string> = {

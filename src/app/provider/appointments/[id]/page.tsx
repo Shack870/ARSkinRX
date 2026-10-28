@@ -18,6 +18,7 @@ import { formatDate, formatDateTime } from "@/lib/datetime";
 import { formatCurrency } from "@/lib/utils";
 import type { ServiceType } from "@/lib/types";
 import { isJoinable } from "@/lib/appointment-window";
+import { RxStatusCard } from "@/components/rx/rx-status-card";
 import { useToast } from "@/components/ui/toast";
 import { useConfirm } from "@/components/ui/confirm";
 import { Card } from "@/components/ui/card";
@@ -189,6 +190,8 @@ export default function ProviderAppointmentDetail({
           <Field label="Phone" value={patient?.phone || "—"} />
         </dl>
       </Card>
+
+      <RxStatusCard appointment={appointment} audience="nurse" />
 
       <Card className="p-6">
         <h2 className="mb-4 font-semibold">Intake</h2>

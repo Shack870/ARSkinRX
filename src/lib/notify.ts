@@ -160,6 +160,8 @@ export function visitSummaryEmail(opts: {
   assessment?: string;
   plan?: string;
   prescribed?: string;
+  /** True when the nurse recommended a prescription that the prescriber will send. */
+  rxPending?: boolean;
 }) {
   const block = (label: string, value?: string) =>
     value
@@ -176,6 +178,11 @@ export function visitSummaryEmail(opts: {
         ${block("Assessment", opts.assessment)}
         ${block("Plan", opts.plan)}
         ${block("Prescribed", opts.prescribed)}
+        ${
+          opts.rxPending
+            ? `<p style="margin:10px 0"><strong>Prescription:</strong><br>Your prescription is being finalized and sent to your pharmacy. The pharmacy will contact you within 24 hours when it's ready.</p>`
+            : ""
+        }
       </div>
       <p>${button(`${APP_URL}/dashboard/records`, "View your records")}</p>
     `),
@@ -198,6 +205,70 @@ export function reminderEmail(opts: {
       visit is <strong>${opts.daysLabel}</strong> — on
       <strong>${opts.whenText}</strong>.</p>
       <p>${button(`${APP_URL}/dashboard`, "View my visit")}</p>
+    `),
+  };
+}
+
+/** To the prescriber: a nurse has recommended a prescription to review. */
+export function rxReviewEmail(opts: {
+  nurseName: string;
+  patientName: string;
+  serviceName: string;
+  items: string[];
+  pending: number;
+}) {
+  return {
+    subject: `Rx to review: ${opts.patientName} (${opts.serviceName})`,
+    html: shell(`
+      <h2 style="color:#2f6f6a">Prescription recommendation</h2>
+      <p><strong>${opts.nurseName}</strong> recommended the following for
+      <strong>${opts.patientName}</strong> after a ${opts.serviceName} visit:</p>
+      <ul>${opts.items.map((i) => `<li>${i}</li>`).join("")}</ul>
+      <p>${opts.pending} item${opts.pending === 1 ? "" : "s"} waiting for your review.</p>
+      <p>${button(`${APP_URL}/admin/prescriptions`, "Review now")}</p>
+    `),
+  };
+}
+
+/** To the prescriber: items have been waiting more than a day. */
+export function rxReminderEmail(opts: { pending: number; oldestHours: number }) {
+  return {
+    subject: `${opts.pending} prescription${opts.pending === 1 ? "" : "s"} waiting for review`,
+    html: shell(`
+      <h2 style="color:#2f6f6a">Prescriptions waiting</h2>
+      <p>${opts.pending} recommendation${opts.pending === 1 ? " has" : "s have"} been
+      waiting for review — the oldest for about ${opts.oldestHours} hours. Patients
+      were told the pharmacy would reach them within 24 hours.</p>
+      <p>${button(`${APP_URL}/admin/prescriptions`, "Open the review queue")}</p>
+    `),
+  };
+}
+
+/** To the nurse: the prescriber declined the recommendation; please call the patient. */
+export function rxDeclinedEmail(opts: {
+  nurseName: string;
+  patientName: string;
+  patientPhone: string;
+  item: string;
+  reason: string;
+  refunded: boolean;
+  appointmentId: string;
+}) {
+  return {
+    subject: `Action needed: Rx declined for ${opts.patientName}`,
+    html: shell(`
+      <h2 style="color:#2f6f6a">Prescription declined</h2>
+      <p>Hi ${opts.nurseName},</p>
+      <p>Crystal declined your recommendation for <strong>${opts.patientName}</strong>:</p>
+      <p style="background:#f1efe9;padding:12px 14px;border-radius:8px"><strong>${opts.item}</strong><br>Reason: ${opts.reason}</p>
+      <p>${
+        opts.refunded
+          ? "The visit has been refunded to the patient."
+          : "No refund was issued because another prescription from this visit is still active."
+      }
+      Please call the patient${opts.patientPhone ? ` at <strong>${opts.patientPhone}</strong>` : ""}
+      to discuss next steps — they have not been notified.</p>
+      <p>${button(`${APP_URL}/provider/appointments/${opts.appointmentId}`, "Open the visit")}</p>
     `),
   };
 }

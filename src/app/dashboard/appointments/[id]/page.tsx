@@ -15,6 +15,7 @@ import {
 import { useAppointment, useIntake, useVisitNote } from "@/lib/hooks";
 import { authedFetch } from "@/lib/api-client";
 import { IntakeSummary } from "@/components/intake-summary";
+import { RxStatusCard } from "@/components/rx/rx-status-card";
 import { IntakePhotos } from "@/components/intake-photos";
 import { DeviceCheck } from "@/components/device-check";
 import { FinishAccountCard } from "@/components/finish-account-card";
@@ -262,7 +263,7 @@ function Detail({ id }: { id: string }) {
                 <SummaryBlock label="Assessment" value={note.assessment} />
               )}
               {note.plan && <SummaryBlock label="Your plan" value={note.plan} />}
-              {note.prescribed && (
+              {note.prescribed && appointment.rxDecision === undefined && (
                 <SummaryBlock label="Prescribed" value={note.prescribed} />
               )}
             </dl>
@@ -277,6 +278,8 @@ function Detail({ id }: { id: string }) {
           </div>
         </Card>
       )}
+
+      <RxStatusCard appointment={appointment} audience="patient" />
 
       {intake && (
         <Card className="p-6">

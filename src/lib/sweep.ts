@@ -8,6 +8,7 @@ import { resolvePrefs } from "@/lib/notifications";
 import { formatTime, formatDateTime } from "@/lib/datetime";
 import { advanceStaleLiveRequests } from "@/lib/live-server";
 import { runWeeklyPayouts, type WeeklyPayoutResult } from "@/lib/payouts-server";
+import { nudgeStaleRecommendations } from "@/lib/prescriptions-server";
 import type { NoShowParty, ServiceType } from "@/lib/types";
 
 const HOUR = 60 * 60 * 1000;
@@ -27,6 +28,8 @@ export interface SweepResult {
   liveQueueOk: boolean;
   /** Friday nurse payout run (no-op on other days / once per Friday). */
   weeklyPayouts: WeeklyPayoutResult | null;
+  /** Prescription recommendations that just crossed the 24h review SLA. */
+  rxNudged: number;
 }
 
 /**
@@ -183,5 +186,13 @@ export async function runSweep(): Promise<SweepResult> {
     console.error("[sweep] weekly payouts failed", err);
   }
 
-  return { noShows, reminders, expiredHolds, liveQueueOk, weeklyPayouts };
+  // 5) Remind the prescriber about recommendations waiting more than 24h.
+  let rxNudged = 0;
+  try {
+    rxNudged = await nudgeStaleRecommendations(now);
+  } catch (err) {
+    console.error("[sweep] rx nudge failed", err);
+  }
+
+  return { noShows, reminders, expiredHolds, liveQueueOk, weeklyPayouts, rxNudged };
 }

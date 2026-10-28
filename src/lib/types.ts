@@ -49,13 +49,22 @@ export interface NotificationPrefs {
 }
 
 /** Base profile for every authenticated user. */
+export interface PatientPharmacy {
+  name: string;
+  /** City / street so the right branch is unambiguous. */
+  location: string;
+  phone: string;
+}
+
 export interface UserProfile {
   uid: string;
   email: string;
   displayName: string;
   phone?: string;
-  /** Date of birth, ISO date "YYYY-MM-DD". Collected with the password after first payment. */
+  /** Date of birth, ISO date "YYYY-MM-DD". Collected at intake (required to prescribe). */
   dob?: string;
+  /** Preferred pharmacy, captured at intake; the prescriber sends Rx here. */
+  pharmacy?: PatientPharmacy;
   role: Role;
   /**
    * Mirror of the additive `admin: true` custom claim. Lets a provider (e.g.
@@ -202,6 +211,11 @@ export interface Appointment {
   holdExpiresAt?: number;
   /** True for on-demand "No-Wait Live" visits. */
   isLive?: boolean;
+  /**
+   * What the nurse decided about medication at End Appointment.
+   * "recommend" → one or more `prescriptions` docs exist for this visit.
+   */
+  rxDecision?: "recommend" | "none";
   /** Timestamps of milestone reminders already sent, to avoid duplicates. */
   remindersSent?: { threeDay?: number; oneDay?: number; dayOf?: number };
   reminderSentAt?: number;
@@ -414,6 +428,65 @@ export interface ProviderPatientDetail {
     age: number | null;
   };
   visits: ProviderPatientVisit[];
+}
+
+/* ───────────────────────────── Prescriptions ───────────────────────────── */
+
+/**
+ * Lifecycle of a prescription recommendation. The nurse on the visit
+ * recommends; the prescriber of record (the clinic owner / admin) approves,
+ * sends it to the pharmacy, or declines (which refunds the visit).
+ *
+ *   recommended → approved → sent
+ *               ↘ declined
+ */
+export type PrescriptionStatus = "recommended" | "approved" | "sent" | "declined";
+
+/** One medication line, as written on a prescription. */
+export interface PrescriptionItem {
+  /** Generic / brand name, e.g. "Tretinoin cream". */
+  drug: string;
+  /** e.g. "0.025%", "100 mg". */
+  strength: string;
+  /** Directions, e.g. "Apply pea-sized amount to face nightly." */
+  sig: string;
+  /** e.g. "45 g", "60 tablets". */
+  quantity: string;
+  refills: number;
+}
+
+/** One prescription (one drug) tied to a completed visit. Server-written only. */
+export interface Prescription {
+  id: string;
+  appointmentId: string;
+  clientId: string;
+  /** Nurse on the visit. */
+  providerId: string;
+  serviceId: ServiceType;
+  status: PrescriptionStatus;
+  /** What the nurse recommended (never edited after creation). */
+  recommended: PrescriptionItem;
+  /** Nurse's one-line rationale for the prescriber. */
+  reason: string;
+  recommendedBy: string;
+  recommendedByName: string;
+  recommendedAt: number;
+  /** The prescriber's final version (defaults to `recommended` on approve). */
+  final?: PrescriptionItem;
+  reviewedBy?: string;
+  reviewedByName?: string;
+  reviewedAt?: number;
+  declineReason?: string;
+  sentAt?: number;
+  sentBy?: string;
+  /** Free text: how it was sent (e-prescribe ref, "called in", fax). */
+  sentVia?: string;
+  /** Snapshot of the patient's pharmacy at recommendation time. */
+  pharmacy?: PatientPharmacy | null;
+  /** Set when the review queue reminder has fired for this item. */
+  reviewNudgedAt?: number;
+  createdAt: number;
+  updatedAt: number;
 }
 
 /** A manual payout to a provider covering one or more completed visits. */

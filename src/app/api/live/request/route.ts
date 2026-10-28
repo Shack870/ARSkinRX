@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { savePatientDetailsFromIntake } from "@/lib/patient-details-server";
 import { adminDb } from "@/lib/firebase/admin";
 import { COLLECTIONS } from "@/lib/firebase/collections";
 import { verifyBearer } from "@/lib/api-auth";
@@ -58,6 +59,8 @@ export async function POST(req: Request) {
     createdAt: now,
     updatedAt: now,
   });
+
+  await savePatientDetailsFromIntake(user.uid, body);
 
   return NextResponse.json({ liveRequestId: ref.id, priceCents, estimate });
 }

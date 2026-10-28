@@ -11,6 +11,7 @@ import {
   Wallet,
   RefreshCw,
   Loader2,
+  Pill,
 } from "lucide-react";
 import { authedFetch } from "@/lib/api-client";
 import { formatCurrency } from "@/lib/utils";
@@ -75,6 +76,8 @@ export default function AdminOverview() {
           Run maintenance
         </Button>
       </div>
+
+      <RxQueueBanner />
 
       {loading ? (
         <Loader2 className="h-6 w-6 animate-spin text-[var(--primary)]" />
@@ -285,5 +288,45 @@ function Stat({
       <p className="mt-3 text-2xl font-semibold tracking-tight">{value}</p>
       <p className="text-xs text-[var(--muted-foreground)]">{label}</p>
     </Card>
+  );
+}
+
+/** Prescriptions waiting on the prescriber — the first thing she should see. */
+function RxQueueBanner() {
+  const [counts, setCounts] = React.useState<{ review: number; send: number } | null>(
+    null,
+  );
+  React.useEffect(() => {
+    authedFetch("/api/admin/prescriptions")
+      .then((r) => r.json())
+      .then((d) =>
+        setCounts({
+          review: Array.isArray(d.toReview) ? d.toReview.length : 0,
+          send: Array.isArray(d.toSend) ? d.toSend.length : 0,
+        }),
+      )
+      .catch(() => setCounts({ review: 0, send: 0 }));
+  }, []);
+  if (!counts || (counts.review === 0 && counts.send === 0)) return null;
+  return (
+    <Link href="/admin/prescriptions" className="block">
+      <Card className="border-[var(--primary)]/40 bg-[var(--primary-soft)] p-4 transition-colors hover:bg-[var(--primary-soft)]/70">
+        <p className="flex items-center gap-2 text-sm font-medium">
+          <Pill className="h-4 w-4 text-[var(--primary)]" />
+          {counts.review > 0 && (
+            <span>
+              {counts.review} prescription{counts.review === 1 ? "" : "s"} to review
+            </span>
+          )}
+          {counts.review > 0 && counts.send > 0 && <span>·</span>}
+          {counts.send > 0 && (
+            <span>
+              {counts.send} to send to pharmacy
+            </span>
+          )}
+          <span className="ml-auto text-[var(--primary)]">Open →</span>
+        </p>
+      </Card>
+    </Link>
   );
 }

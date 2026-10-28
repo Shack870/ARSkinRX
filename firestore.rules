@@ -93,6 +93,17 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Prescriptions (PHI). Readable by the patient, the nurse on the visit, and
+    // admins. All writes go through the server (status transitions are audited).
+    match /prescriptions/{prescriptionId} {
+      allow read: if isSignedIn() && (
+        resource.data.clientId == request.auth.uid ||
+        resource.data.providerId == request.auth.uid ||
+        isAdmin()
+      );
+      allow write: if false;
+    }
+
     // Visit notes (PHI). Provider on the visit and admin write/read; client reads.
     match /visitNotes/{appointmentId} {
       allow read: if isSignedIn() && (

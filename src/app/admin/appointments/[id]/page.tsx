@@ -16,6 +16,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { IntakeSummary } from "@/components/intake-summary";
+import { RxStatusCard } from "@/components/rx/rx-status-card";
 import { IntakePhotos } from "@/components/intake-photos";
 import { LiveBadge } from "@/components/live/live-badge";
 
@@ -83,6 +84,8 @@ export default function AdminAppointmentDetail({
           <Party label="Provider" name={provider?.displayName} email={provider?.email} phone={provider?.phone} />
         </dl>
       </Card>
+
+      <RxStatusCard appointment={appointment} audience="admin" />
 
       <Card className="p-6">
         <h2 className="mb-4 font-semibold">Intake</h2>

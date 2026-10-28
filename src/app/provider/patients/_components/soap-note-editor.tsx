@@ -18,7 +18,9 @@ export const NOTE_FIELDS = [
   {
     key: "prescribed",
     label: "Prescribed",
-    placeholder: "Medications prescribed via your e-prescribe tool",
+    placeholder: "",
+    /** Filled from the End Appointment medication recommendation; not free-text. */
+    readOnly: true,
   },
 ] as const;
 export type NoteFieldKey = (typeof NOTE_FIELDS)[number]["key"];
@@ -93,7 +95,7 @@ export function SoapNoteEditor({
         {NOTE_FIELDS.map((f) => (
           <div key={f.key}>
             <Label>{f.label}</Label>
-            {canEdit ? (
+            {canEdit && !("readOnly" in f && f.readOnly) ? (
               <Textarea
                 value={draft[f.key]}
                 onChange={(e) =>
@@ -105,6 +107,12 @@ export function SoapNoteEditor({
             ) : (
               <p className="mt-1 whitespace-pre-wrap text-sm">
                 {draft[f.key] || <span className="text-[var(--muted-foreground)]">—</span>}
+                {canEdit && "readOnly" in f && f.readOnly && (
+                  <span className="mt-1 block text-xs text-[var(--muted-foreground)]">
+                    Set from the medication recommendation at End Appointment. Prescriptions
+                    go through Crystal&apos;s review, not this note.
+                  </span>
+                )}
               </p>
             )}
           </div>

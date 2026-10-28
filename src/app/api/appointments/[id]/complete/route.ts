@@ -8,7 +8,9 @@ import { transferLiveVisitShare } from "@/lib/connect-server";
 import { sendEmail, visitSummaryEmail } from "@/lib/notify";
 import { resolvePrefs } from "@/lib/notifications";
 import { getService } from "@/lib/services";
-import type { ServiceType } from "@/lib/types";
+import { createPrescriptionsForVisit, parseItems } from "@/lib/prescriptions-server";
+import { describeItem } from "@/lib/formulary";
+import type { PrescriptionItem, ServiceType } from "@/lib/types";
 
 /**
  * POST /api/appointments/[id]/complete
@@ -33,10 +35,29 @@ export async function POST(
   }
 
   const body = await req.json().catch(() => ({}));
+
+  // Medication decision: the nurse must say either "recommend" (with ≥1 item)
+  // or "none" so no visit is left in limbo. Older clients that send neither
+  // are treated as "none".
+  let rxItems: PrescriptionItem[] | null = null;
+  let rxReason = "";
+  const rxDecision: "recommend" | "none" =
+    body.rx?.decision === "recommend" ? "recommend" : "none";
+  if (rxDecision === "recommend") {
+    rxItems = parseItems(body.rx?.items);
+    if (!rxItems) {
+      return NextResponse.json(
+        { error: "Add at least one medication with a drug name and directions." },
+        { status: 400 },
+      );
+    }
+    rxReason = String(body.rx?.reason ?? "");
+  }
+
   const now = Date.now();
   const batch = adminDb.batch();
 
-  batch.update(ref, { status: "completed", updatedAt: now });
+  batch.update(ref, { status: "completed", rxDecision, updatedAt: now });
 
   if (body.notes) {
     const notesRef = adminDb.collection(COLLECTIONS.visitNotes).doc(id);
@@ -49,7 +70,11 @@ export async function POST(
         subjective: String(body.notes.subjective ?? ""),
         assessment: String(body.notes.assessment ?? ""),
         plan: String(body.notes.plan ?? ""),
-        prescribed: String(body.notes.prescribed ?? ""),
+        // Clinical record of what was recommended; the structured Rx lives in
+        // the prescriptions collection and is what the prescriber acts on.
+        prescribed: rxItems
+          ? rxItems.map(describeItem).join("\n")
+          : String(body.notes.prescribed ?? ""),
         createdAt: now,
         updatedAt: now,
       },
@@ -58,6 +83,22 @@ export async function POST(
   }
 
   await batch.commit();
+
+  if (rxItems) {
+    try {
+      await createPrescriptionsForVisit({
+        appointmentId: id,
+        clientId: a.clientId,
+        providerId: a.providerId,
+        serviceId: a.serviceId as ServiceType,
+        items: rxItems,
+        reason: rxReason,
+        actor: { uid: user.uid, isAdmin: Boolean(user.isAdmin) },
+      });
+    } catch (err) {
+      console.error("[appointments/complete] rx create failed", err);
+    }
+  }
 
   // Free the nurse to take the next real-time visit (this also rings the next
   // patient in their line), and send them their share via Stripe Connect if
@@ -94,7 +135,9 @@ export async function POST(
             serviceName: service?.name ?? "visit",
             assessment: String(body.notes.assessment ?? ""),
             plan: String(body.notes.plan ?? ""),
-            prescribed: String(body.notes.prescribed ?? ""),
+            // Don't list drug names until the prescriber has signed off.
+            prescribed: rxItems ? "" : String(body.notes.prescribed ?? ""),
+            rxPending: Boolean(rxItems),
           }),
         });
       }

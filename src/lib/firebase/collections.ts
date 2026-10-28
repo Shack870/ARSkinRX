@@ -9,6 +9,7 @@ export const COLLECTIONS = {
   payments: "payments",
   payouts: "payouts",
   visitNotes: "visitNotes",
+  prescriptions: "prescriptions",
   signaling: "signaling",
   auditLogs: "auditLogs",
   presence: "presence",

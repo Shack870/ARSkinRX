@@ -24,7 +24,8 @@ import { SERVICES, getServiceBySlug, getService } from "@/lib/services";
 import { formatCurrency } from "@/lib/utils";
 import { formatRelativeDay, formatTime } from "@/lib/datetime";
 import { normalizeUsPhone } from "@/lib/phone";
-import type { LiveEstimate, ServiceType } from "@/lib/types";
+import { ageFromDob, MIN_PATIENT_AGE, maxAdultDobIso, parseDob } from "@/lib/dob";
+import type { LiveEstimate, PatientPharmacy, ServiceType } from "@/lib/types";
 
 function initials(name: string) {
   return name
@@ -68,7 +69,7 @@ function BookInner() {
   const router = useRouter();
   const params = useSearchParams();
   const toast = useToast();
-  const { user, loading: authLoading, signInWithToken, signIn } = useAuth();
+  const { user, profile, loading: authLoading, signInWithToken, signIn } = useAuth();
 
   // Guest booking: capture identity at intake; account is created silently and
   // the patient sets a password after paying.
@@ -124,6 +125,47 @@ function BookInner() {
   });
   const [photoPaths, setPhotoPaths] = React.useState<string[]>([]);
   const [uploadingPhoto, setUploadingPhoto] = React.useState(false);
+  // Prescriber needs these before anything can be sent to a pharmacy.
+  const [dob, setDob] = React.useState("");
+  const [pharmacy, setPharmacy] = React.useState<PatientPharmacy>({
+    name: "",
+    location: "",
+    phone: "",
+  });
+  // Pre-fill from the profile once it arrives (state adjusted during render).
+  const [prefilled, setPrefilled] = React.useState(false);
+  if (!prefilled && profile) {
+    setPrefilled(true);
+    if (profile.dob) setDob(profile.dob);
+    if (profile.pharmacy?.name) setPharmacy(profile.pharmacy);
+  }
+
+  /** Everything the server needs to persist alongside the intake answers. */
+  function intakePayload() {
+    return {
+      intake: {
+        ...intake,
+        pharmacy: [pharmacy.name, pharmacy.location, pharmacy.phone]
+          .filter(Boolean)
+          .join(" · "),
+      },
+      dob,
+      pharmacy,
+      photoPaths,
+    };
+  }
+
+  function validateIntakeDetails(): string | null {
+    if (!parseDob(dob)) return "Enter your date of birth.";
+    const age = ageFromDob(dob);
+    if (age === null || age > 120) return "Please double-check your date of birth.";
+    if (age < MIN_PATIENT_AGE)
+      return `ARSkinRX only treats adults. You must be ${MIN_PATIENT_AGE} or older to be seen.`;
+    if (pharmacy.name.trim().length < 2) return "Enter your pharmacy's name.";
+    if (pharmacy.location.trim().length < 2)
+      return "Enter your pharmacy's city or street so we send it to the right one.";
+    return null;
+  }
   const [liveAvailable, setLiveAvailable] = React.useState(false);
   const [liveEstimate, setLiveEstimate] = React.useState<LiveEstimate | null>(null);
   const [livePriceCents, setLivePriceCents] = React.useState(9900);
@@ -279,6 +321,11 @@ function BookInner() {
   }
 
   async function continueFromIntake() {
+    const problem = validateIntakeDetails();
+    if (problem) {
+      setError(problem);
+      return;
+    }
     if (await ensureAccount()) next();
   }
 
@@ -335,8 +382,7 @@ function BookInner() {
           providerId: provider.uid,
           serviceId,
           start: slot.start,
-          intake,
-          photoPaths,
+          ...intakePayload(),
         }),
       });
       const data = await res.json();
@@ -372,7 +418,7 @@ function BookInner() {
     try {
       const reqRes = await authedFetch("/api/live/request", {
         method: "POST",
-        body: JSON.stringify({ serviceId, intake, photoPaths }),
+        body: JSON.stringify({ serviceId, ...intakePayload() }),
       });
       const reqData = await reqRes.json();
       if (!reqRes.ok)
@@ -756,6 +802,62 @@ function BookInner() {
                     <option value="yes">Yes</option>
                     <option value="na">Not applicable</option>
                   </select>
+                </div>
+                <div>
+                  <Label htmlFor="dob">Date of birth</Label>
+                  <Input
+                    id="dob"
+                    type="date"
+                    value={dob}
+                    max={maxAdultDobIso()}
+                    onChange={(e) => setDob(e.target.value)}
+                    className="max-w-[220px]"
+                  />
+                  <p className="mt-1 text-xs text-[var(--muted-foreground)]">
+                    Required on any prescription. Adults ({MIN_PATIENT_AGE}+) only.
+                  </p>
+                </div>
+                <div className="rounded-[var(--radius-md)] border border-[var(--border)] p-4">
+                  <p className="flex items-center gap-2 font-medium">
+                    <Pill className="h-4 w-4 text-[var(--primary)]" /> Your pharmacy
+                  </p>
+                  <p className="mb-3 mt-1 text-xs text-[var(--muted-foreground)]">
+                    If a prescription is written, we&apos;ll send it here and the
+                    pharmacy will contact you when it&apos;s ready.
+                  </p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <Label htmlFor="pharmacyName">Pharmacy name</Label>
+                      <Input
+                        id="pharmacyName"
+                        value={pharmacy.name}
+                        onChange={(e) => setPharmacy({ ...pharmacy, name: e.target.value })}
+                        placeholder="Walgreens, CVS, Walmart…"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="pharmacyLocation">City or street</Label>
+                      <Input
+                        id="pharmacyLocation"
+                        value={pharmacy.location}
+                        onChange={(e) =>
+                          setPharmacy({ ...pharmacy, location: e.target.value })
+                        }
+                        placeholder="Mountain Home, Hwy 62"
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <Label htmlFor="pharmacyPhone">Pharmacy phone (optional)</Label>
+                      <Input
+                        id="pharmacyPhone"
+                        type="tel"
+                        value={pharmacy.phone}
+                        onChange={(e) => setPharmacy({ ...pharmacy, phone: e.target.value })}
+                        placeholder="(870) 555-0100"
+                        className="max-w-[240px]"
+                      />
+                    </div>
+                  </div>
                 </div>
                 <div>
                   <Label>Photos (optional)</Label>

@@ -22,6 +22,7 @@ import type {
   UserProfile,
   VisitNote,
   VisitNoteHistoryEntry,
+  Prescription,
 } from "@/lib/types";
 
 export function useLiveRequest(id: string | undefined) {
@@ -134,6 +135,49 @@ export function useVisitNote(appointmentId: string | undefined) {
     );
   }, [appointmentId]);
   return { note, loading };
+}
+
+/** All prescriptions tied to one visit (patient, nurse on the visit, or admin). */
+/**
+ * Prescriptions for one visit. Non-admin readers must scope the query to
+ * their own uid (`clientId` for patients, `providerId` for nurses) so the
+ * Firestore rule can prove every result is theirs; admins read unscoped.
+ */
+export function usePrescriptionsForAppointment(
+  appointmentId: string | undefined,
+  scope?: { field: "clientId" | "providerId"; uid: string | undefined },
+) {
+  const [prescriptions, setPrescriptions] = React.useState<Prescription[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const scopeField = scope?.field;
+  const scopeUid = scope?.uid;
+  React.useEffect(() => {
+    if (!appointmentId) return;
+    if (scopeField && !scopeUid) return;
+    const q = scopeField
+      ? query(
+          collection(db, COLLECTIONS.prescriptions),
+          where("appointmentId", "==", appointmentId),
+          where(scopeField, "==", scopeUid),
+        )
+      : query(
+          collection(db, COLLECTIONS.prescriptions),
+          where("appointmentId", "==", appointmentId),
+        );
+    return onSnapshot(
+      q,
+      (snap) => {
+        setPrescriptions(
+          snap.docs
+            .map((d) => d.data() as Prescription)
+            .sort((a, b) => a.createdAt - b.createdAt),
+        );
+        setLoading(false);
+      },
+      () => setLoading(false),
+    );
+  }, [appointmentId, scopeField, scopeUid]);
+  return { prescriptions, loading };
 }
 
 export function useClientPayments(uid: string | undefined) {

@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/components/ui/toast";
-import type { NotificationPrefs } from "@/lib/types";
+import type { NotificationPrefs, PatientPharmacy } from "@/lib/types";
 
 export default function ClientProfilePage() {
   const { user, profile } = useAuth();
@@ -28,8 +28,18 @@ export default function ClientProfilePage() {
     DEFAULT_NOTIFICATION_PREFS,
   );
   const [smsOptIn, setSmsOptIn] = React.useState(false);
+  const [pharmacy, setPharmacy] = React.useState<PatientPharmacy>({
+    name: "",
+    location: "",
+    phone: "",
+  });
   const [saving, setSaving] = React.useState(false);
   const hydrated = React.useRef(false);
+  const [pharmacyHydrated, setPharmacyHydrated] = React.useState(false);
+  if (!pharmacyHydrated && profile) {
+    setPharmacyHydrated(true);
+    if (profile.pharmacy) setPharmacy(profile.pharmacy);
+  }
 
   React.useEffect(() => {
     if (hydrated.current || !profile) return;
@@ -64,6 +74,15 @@ export default function ClientProfilePage() {
         phone,
         notificationPrefs: prefs,
         smsOptIn,
+        ...(pharmacy.name.trim()
+          ? {
+              pharmacy: {
+                name: pharmacy.name.trim(),
+                location: pharmacy.location.trim(),
+                phone: pharmacy.phone.trim(),
+              },
+            }
+          : {}),
         // Record consent time when newly opting in.
         ...(smsOptIn && !wasOptedIn ? { smsOptInAt: Date.now() } : {}),
         updatedAt: Date.now(),
@@ -102,6 +121,43 @@ export default function ClientProfilePage() {
           <div>
             <Label htmlFor="email">Email</Label>
             <Input id="email" value={profile?.email ?? ""} disabled />
+          </div>
+        </div>
+      </Card>
+
+      <Card className="p-6">
+        <h2 className="font-semibold">Your pharmacy</h2>
+        <p className="mb-4 text-sm text-[var(--muted-foreground)]">
+          Where we send any prescription your provider writes. Keep this current.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <Label htmlFor="pharmacyName">Pharmacy name</Label>
+            <Input
+              id="pharmacyName"
+              value={pharmacy.name}
+              onChange={(e) => setPharmacy({ ...pharmacy, name: e.target.value })}
+              placeholder="Walgreens, CVS, Walmart…"
+            />
+          </div>
+          <div>
+            <Label htmlFor="pharmacyLocation">City or street</Label>
+            <Input
+              id="pharmacyLocation"
+              value={pharmacy.location}
+              onChange={(e) => setPharmacy({ ...pharmacy, location: e.target.value })}
+              placeholder="Mountain Home, Hwy 62"
+            />
+          </div>
+          <div>
+            <Label htmlFor="pharmacyPhone">Pharmacy phone (optional)</Label>
+            <Input
+              id="pharmacyPhone"
+              type="tel"
+              value={pharmacy.phone}
+              onChange={(e) => setPharmacy({ ...pharmacy, phone: e.target.value })}
+              placeholder="(870) 555-0100"
+            />
           </div>
         </div>
       </Card>

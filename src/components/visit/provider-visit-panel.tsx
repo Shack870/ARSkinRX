@@ -9,6 +9,9 @@ import {
   History,
   Loader2,
   PhoneOff,
+  Pill,
+  Plus,
+  Trash2,
   User,
 } from "lucide-react";
 import { db } from "@/lib/firebase/client";
@@ -25,7 +28,17 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { IntakeSummary } from "@/components/intake-summary";
 import { IntakePhotos } from "@/components/intake-photos";
-import type { Appointment, IntakeResponse, ServiceType } from "@/lib/types";
+import { RxItemFields } from "@/components/rx/rx-item-fields";
+import { emptyPrescriptionItem } from "@/lib/formulary";
+import { useAuth } from "@/lib/auth-context";
+import type {
+  Appointment,
+  IntakeResponse,
+  PrescriptionItem,
+  ServiceType,
+} from "@/lib/types";
+
+type RxDecision = "" | "recommend" | "none";
 
 type Notes = {
   subjective: string;
@@ -84,6 +97,18 @@ export function ProviderVisitPanel({
   const [showLast, setShowLast] = React.useState(false);
   const [completing, setCompleting] = React.useState(false);
   const hydrated = React.useRef(false);
+  const { isAdmin } = useAuth();
+
+  // Medication decision — required before the visit can be ended.
+  const [rxDecision, setRxDecision] = React.useState<RxDecision>("");
+  const [rxItems, setRxItems] = React.useState<PrescriptionItem[]>([
+    emptyPrescriptionItem(),
+  ]);
+  const [rxReason, setRxReason] = React.useState("");
+  const rxRef = React.useRef({ rxDecision, rxItems, rxReason });
+  React.useEffect(() => {
+    rxRef.current = { rxDecision, rxItems, rxReason };
+  }, [rxDecision, rxItems, rxReason]);
 
   // Hydrate notes once from any existing saved draft, then keep local state.
   React.useEffect(() => {
@@ -145,10 +170,34 @@ export function ProviderVisitPanel({
   const completingRef = React.useRef(false);
   const complete = React.useCallback(async () => {
     if (completingRef.current) return;
+    const { rxDecision: decision, rxItems: items, rxReason: reason } = rxRef.current;
+    if (decision === "") {
+      toast.error(
+        "Medication decision needed",
+        "Choose “Recommend a prescription” or “No prescription” before ending.",
+      );
+      return;
+    }
+    const cleanItems = items.filter((i) => i.drug.trim() || i.sig.trim());
+    if (decision === "recommend") {
+      if (cleanItems.length === 0) {
+        toast.error("Add at least one medication.");
+        return;
+      }
+      const bad = cleanItems.find((i) => !i.drug.trim() || !i.sig.trim());
+      if (bad) {
+        toast.error("Each medication needs a drug name and directions.");
+        return;
+      }
+    }
     const ok = await confirm({
       title: "End appointment?",
       message:
-        "This saves your notes, marks the visit completed, and emails the patient their summary. You'll be taken back to your dashboard.",
+        decision === "recommend"
+          ? isAdmin
+            ? `Saves your notes, marks the visit completed, and adds ${cleanItems.length} prescription${cleanItems.length === 1 ? "" : "s"} to your Send to pharmacy list.`
+            : `Saves your notes, marks the visit completed, and sends ${cleanItems.length} recommendation${cleanItems.length === 1 ? "" : "s"} to Crystal for review. Remind the patient the pharmacy will contact them within 24 hours.`
+          : "Saves your notes, marks the visit completed, and emails the patient their summary. You'll be taken back to your dashboard.",
       confirmLabel: "End appointment",
     });
     if (!ok) return;
@@ -157,7 +206,13 @@ export function ProviderVisitPanel({
     try {
       const res = await authedFetch(`/api/appointments/${appointment.id}/complete`, {
         method: "POST",
-        body: JSON.stringify({ notes: notesRef.current }),
+        body: JSON.stringify({
+          notes: notesRef.current,
+          rx:
+            decision === "recommend"
+              ? { decision, items: cleanItems, reason }
+              : { decision: "none" },
+        }),
       });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
@@ -169,7 +224,7 @@ export function ProviderVisitPanel({
       completingRef.current = false;
       setCompleting(false);
     }
-  }, [appointment.id, confirm, onCompleted, toast]);
+  }, [appointment.id, confirm, isAdmin, onCompleted, toast]);
 
   React.useEffect(() => {
     onRegisterComplete?.(complete);
@@ -267,12 +322,99 @@ export function ProviderVisitPanel({
           <Field label="Subjective" value={notes.subjective} onChange={(v) => set("subjective", v)} />
           <Field label="Assessment" value={notes.assessment} onChange={(v) => set("assessment", v)} />
           <Field label="Plan" value={notes.plan} onChange={(v) => set("plan", v)} />
-          <Field
-            label="Prescribed"
-            value={notes.prescribed}
-            onChange={(v) => set("prescribed", v)}
-            placeholder="Medications prescribed via your e-prescribe tool"
-          />
+        </section>
+
+        {/* Medication decision */}
+        <section className="space-y-3 rounded-[var(--radius-md)] border border-[var(--primary)]/30 bg-[var(--primary-soft)]/30 p-3">
+          <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-[var(--primary)]">
+            <Pill className="h-3.5 w-3.5" /> Medication
+            <span className="font-normal normal-case text-[var(--muted-foreground)]">
+              · required
+            </span>
+          </h3>
+          <div className="grid grid-cols-2 gap-2">
+            <ChoiceButton
+              active={rxDecision === "recommend"}
+              onClick={() => setRxDecision("recommend")}
+            >
+              Recommend a prescription
+            </ChoiceButton>
+            <ChoiceButton
+              active={rxDecision === "none"}
+              onClick={() => setRxDecision("none")}
+            >
+              No prescription
+            </ChoiceButton>
+          </div>
+
+          {rxDecision === "recommend" && (
+            <div className="space-y-4">
+              {!isAdmin && (
+                <p className="text-xs text-[var(--muted-foreground)]">
+                  Crystal reviews and sends every prescription. Tell the patient
+                  the pharmacy will contact them within 24 hours.
+                </p>
+              )}
+              {rxItems.map((item, idx) => (
+                <div
+                  key={idx}
+                  className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--card)] p-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-medium text-[var(--muted-foreground)]">
+                      Medication {idx + 1}
+                    </p>
+                    {rxItems.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setRxItems((list) => list.filter((_, i) => i !== idx))
+                        }
+                        className="text-[var(--muted-foreground)] hover:text-[var(--accent)]"
+                        aria-label="Remove medication"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                  <RxItemFields
+                    idPrefix={`visit-rx-${idx}`}
+                    value={item}
+                    onChange={(next) =>
+                      setRxItems((list) => list.map((it, i) => (i === idx ? next : it)))
+                    }
+                    serviceId={appointment.serviceId}
+                    compact
+                  />
+                </div>
+              ))}
+              {rxItems.length < 4 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setRxItems((list) => [...list, emptyPrescriptionItem()])}
+                >
+                  <Plus className="h-4 w-4" /> Add another medication
+                </Button>
+              )}
+              {!isAdmin && (
+                <div>
+                  <Label className="text-xs">Why (one line for Crystal)</Label>
+                  <Textarea
+                    value={rxReason}
+                    onChange={(e) => setRxReason(e.target.value)}
+                    placeholder="e.g. Moderate inflammatory acne, no prior retinoid use, not pregnant."
+                    className="min-h-[48px] text-sm"
+                  />
+                </div>
+              )}
+            </div>
+          )}
+          {rxDecision === "none" && (
+            <p className="text-xs text-[var(--muted-foreground)]">
+              No prescription will be sent. Capture any OTC advice in the Plan above.
+            </p>
+          )}
         </section>
       </div>
 
@@ -302,6 +444,32 @@ export function ProviderVisitPanel({
         )}
       </div>
     </div>
+  );
+}
+
+function ChoiceButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={
+        "rounded-[var(--radius-md)] border px-3 py-2 text-sm font-medium transition-colors " +
+        (active
+          ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground)]"
+          : "border-[var(--border)] bg-[var(--card)] hover:bg-[var(--muted)]")
+      }
+    >
+      {children}
+    </button>
   );
 }
 

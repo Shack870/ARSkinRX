@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { savePatientDetailsFromIntake } from "@/lib/patient-details-server";
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
 import { COLLECTIONS } from "@/lib/firebase/collections";
@@ -93,6 +94,8 @@ export async function POST(req: Request) {
     }
     throw e;
   }
+
+  await savePatientDetailsFromIntake(user.uid, body);
 
   await adminDb.collection(COLLECTIONS.auditLogs).add({
     actorId: user.uid,
