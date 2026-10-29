@@ -1063,11 +1063,11 @@ function BookInner() {
                     <Pill className="h-3.5 w-3.5" />
                   </span>
                   <p>
-                    <span className="font-medium">Prescription included.</span>{" "}
+                    <span className="font-medium">This pays for your visit only.</span>{" "}
                     <span className="text-[var(--muted-foreground)]">
-                      Your total covers the live video visit and any
-                      prescription your provider writes — sent to your pharmacy
-                      at no extra charge.
+                      If your provider writes a prescription, it goes to our
+                      partner pharmacy, who contacts you within 24 hours to take
+                      payment for the medication and ship it to you.
                     </span>
                   </p>
                 </div>

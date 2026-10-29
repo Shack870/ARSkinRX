@@ -27,7 +27,7 @@ const EXPECT = [
     icon: FileCheck,
     color: "bg-[var(--gold)]",
     title: "Get your plan",
-    body: "Receive a personalized treatment plan — and when a prescription is part of it, it's sent to your pharmacy, included in your visit price.",
+    body: "Receive a personalized treatment plan — and when a prescription is part of it, your nurse sends it to our partner pharmacy, who contacts you to fill and ship it.",
   },
 ];
 
@@ -63,11 +63,11 @@ export default async function ServicePage({
   const faqs = [
     {
       q: `How much is a ${service.name.toLowerCase()} visit?`,
-      a: `${formatCurrency(service.defaultPriceCents)} for a ${service.durationMinutes}-minute live video visit with your nurse practitioner, paid securely at booking. The price includes any prescription your provider writes — there's no separate prescribing fee.`,
+      a: `${formatCurrency(service.defaultPriceCents)} for a ${service.durationMinutes}-minute live video visit with your nurse practitioner, paid securely at booking. That covers the visit itself — there's no separate prescribing fee. Medication is paid for separately through the pharmacy that fills it.`,
     },
     {
-      q: "Is a prescription included?",
-      a: `Yes. ${service.name} is typically managed with prescription therapy, so most patients leave their visit with one — and it's included in the visit price, sent straight to your pharmacy. What's prescribed is your provider's clinical decision; we don't prescribe controlled substances online, and medication cost at the pharmacy is separate.`,
+      q: "Will I get a prescription?",
+      a: `${service.name} is typically managed with prescription therapy, so most patients leave their visit with one. Your nurse writes it and sends it to our partner pharmacy, which contacts you directly (usually within 24 hours) to take payment for the medication and ship it to you. What's prescribed is your provider's clinical decision, and we don't prescribe controlled substances online.`,
     },
     {
       q: "Who will I see?",
@@ -91,7 +91,7 @@ export default async function ServicePage({
                 {service.durationMinutes} min live video visit
               </p>
               <span className="arx-rx-pill">
-                <Pill className="h-3.5 w-3.5" /> Prescription included
+                <Pill className="h-3.5 w-3.5" /> Prescription sent to our pharmacy
               </span>
             </div>
             <h1 className="mt-3 text-4xl font-semibold tracking-tight md:text-5xl">

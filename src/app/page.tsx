@@ -24,8 +24,8 @@ const BENEFITS = [
     icon: Pill,
     tint: "tint-gold",
     bar: "var(--gold)",
-    title: "Prescription included",
-    body: "If treatment calls for a prescription — and for most skin concerns it does — it's sent to your pharmacy at no extra cost.",
+    title: "Prescription sent for you",
+    body: "If treatment calls for a prescription — and for most skin concerns it does — your nurse writes it and sends it to our partner pharmacy, who contacts you to fill and ship it.",
   },
   {
     icon: BadgeCheck,
@@ -57,11 +57,11 @@ const FAQS = [
   },
   {
     q: "What happens during a visit?",
-    a: "You'll meet your provider on a private video call. They'll review your concern and intake answers, talk through a plan, and — when treatment calls for it — send a prescription straight to your pharmacy.",
+    a: "You'll meet your provider on a private video call. They'll review your concern and intake answers, talk through a plan, and — when treatment calls for it — write a prescription and send it to our partner pharmacy.",
   },
   {
-    q: "Is a prescription included in the price?",
-    a: "Yes. The visit price covers your consultation and any prescription your provider writes — there's no separate prescribing fee. Most skin, hair, and nail concerns we treat are managed with prescription therapy, so most patients leave with one. What's prescribed is always your provider's clinical decision, and we don't prescribe controlled substances online. Pharmacy charges for the medication itself are separate.",
+    q: "What does the visit price cover?",
+    a: "The visit price pays for your live video visit with the nurse practitioner — nothing else is owed to ARSkinRX. If your provider writes a prescription, it's sent to our partner pharmacy, and the pharmacy contacts you directly (usually within 24 hours) to take payment for the medication and ship it to you. Medication cost is paid to the pharmacy, not to us. What's prescribed is always your provider's clinical decision, and we don't prescribe controlled substances online.",
   },
   {
     q: "What if I miss my appointment?",
@@ -69,7 +69,7 @@ const FAQS = [
   },
   {
     q: "How much does it cost?",
-    a: "Most visits are $69–$79, shown clearly before you pay, with the prescription included. You pay securely at booking.",
+    a: "Most visits are $69–$79, shown clearly before you pay. You pay securely at booking. Any medication is paid for separately through the pharmacy that fills it.",
   },
 ];
 
@@ -90,13 +90,13 @@ const STEPS = [
     icon: CreditCard,
     color: "bg-[var(--primary)]",
     title: "Pay securely",
-    body: "One price covers the visit and your prescription. Your spot is locked in the moment payment clears.",
+    body: "One flat price for the visit, shown up front. Your spot is locked in the moment payment clears.",
   },
   {
     icon: Video,
     color: "bg-[var(--accent)]",
     title: "Meet by video",
-    body: "Join your private video visit and get your personalized plan — prescription sent to your pharmacy when it's part of your treatment.",
+    body: "Join your private video visit and get your personalized plan. If a prescription is part of it, it goes to our partner pharmacy, who contacts you to fill and ship it.",
   },
 ];
 
@@ -117,7 +117,7 @@ export default function HomePage() {
                 Licensed in Arkansas · Independent Practice Authority
               </span>
               <span className="arx-rx-pill">
-                <Pill className="h-3.5 w-3.5" /> Prescription included
+                <Pill className="h-3.5 w-3.5" /> Prescriptions sent to our pharmacy
               </span>
             </div>
             <h1 className="mx-auto mt-6 max-w-3xl text-4xl font-semibold tracking-tight md:text-6xl">
@@ -126,8 +126,9 @@ export default function HomePage() {
             </h1>
             <p className="mx-auto mt-5 max-w-xl text-lg text-[var(--muted-foreground)]">
               A live video visit with an Arkansas nurse practitioner for acne,
-              anti-aging, rosacea, hair, nail health, and more. One price
-              covers the consultation <em>and</em> your prescription.
+              anti-aging, rosacea, hair, nail health, and more. One flat price
+              for the visit — your prescription is sent to our partner pharmacy,
+              who fills it and ships it to you.
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link href="/book">
@@ -193,24 +194,26 @@ export default function HomePage() {
             <div className="grid gap-8 md:grid-cols-[1.2fr_1fr] md:items-center">
               <div>
                 <span className="arx-rx-pill">
-                  <Pill className="h-3.5 w-3.5" /> One price. Everything included.
+                  <Pill className="h-3.5 w-3.5" /> One flat price for the visit.
                 </span>
                 <h2 className="mt-4 text-2xl font-semibold tracking-tight md:text-3xl">
-                  Your visit price covers the consultation{" "}
-                  <span className="text-[var(--tint-gold-fg)]">and</span> the
-                  prescription.
+                  You pay for the visit.{" "}
+                  <span className="text-[var(--tint-gold-fg)]">The pharmacy</span>{" "}
+                  handles the rest.
                 </h2>
                 <p className="mt-3 max-w-xl text-[var(--muted-foreground)]">
                   Nearly every concern we treat — acne, rosacea, pigmentation,
                   aging skin, hair loss, nail fungus, eczema — is managed with
                   prescription therapy. When your provider prescribes, it goes
-                  straight to your pharmacy. No prescribing fee, no upsell.
+                  straight to our partner pharmacy, who contacts you to pay for
+                  your medication and ships it to your door. No prescribing fee,
+                  no upsell.
                 </p>
               </div>
               <ul className="grid gap-3 text-sm">
                 {[
                   ["Live video consultation", "15 minutes, one-on-one with an Arkansas APRN"],
-                  ["Prescription sent to your pharmacy", "Included whenever it's part of your plan"],
+                  ["Prescription sent to our pharmacy", "Whenever it's part of your plan — the pharmacy contacts you to fill and ship it"],
                   ["Written treatment plan", "In your dashboard right after the visit"],
                   ["Free reschedule", "Life happens — move your visit once at no charge"],
                 ].map(([t, d]) => (
@@ -231,8 +234,8 @@ export default function HomePage() {
             </div>
             <p className="mt-6 text-xs text-[var(--muted-foreground)]">
               Prescriptions are at your provider&apos;s clinical judgment. We
-              don&apos;t prescribe controlled substances online. Medication cost
-              at the pharmacy is separate.
+              don&apos;t prescribe controlled substances online. Medication is
+              paid for separately, directly to the pharmacy that fills it.
             </p>
           </div>
         </section>

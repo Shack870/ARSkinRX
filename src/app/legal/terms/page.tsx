@@ -64,6 +64,13 @@ export default function TermsPage() {
           treating provider and are not guaranteed. Controlled substances are
           not prescribed through ARSkinRX.
         </p>
+        <p>
+          The visit fee you pay to ARSkinRX covers the telehealth visit only.
+          Prescriptions are transmitted to a pharmacy, which is a separate
+          business. The pharmacy contacts you directly to collect payment for
+          the medication and to arrange fulfillment and shipping. ARSkinRX does
+          not sell or dispense medication and does not set medication prices.
+        </p>
       </LegalSection>
       <LegalSection heading="7. Provider relationship">
         <p>

@@ -334,7 +334,7 @@ function LiveInner({ id }: { id: string }) {
             )}
           </p>
           <span className="arx-rx-pill mt-3">
-            <Pill className="h-3.5 w-3.5" /> Prescription included in your visit price
+            <Pill className="h-3.5 w-3.5" /> Prescriptions go to our partner pharmacy, who ships to you
           </span>
           <SelfView stream={stream} error={mediaError} />
           <p className="mt-3 text-xs text-[var(--muted-foreground)]">
@@ -430,7 +430,7 @@ function QueuedScreen({
 
       <div className="mt-3">
         <span className="arx-rx-pill">
-          <Pill className="h-3.5 w-3.5" /> Prescription included in your visit price
+          <Pill className="h-3.5 w-3.5" /> Prescriptions go to our partner pharmacy, who ships to you
         </span>
       </div>
 

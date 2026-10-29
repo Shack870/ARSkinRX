@@ -55,7 +55,7 @@ export function ServiceCard({ service }: { service: ServiceDefinition }) {
             <Icon className="h-5 w-5" />
           </div>
           <span className="arx-rx-pill">
-            <Pill className="h-3 w-3" /> Rx included
+            <Pill className="h-3 w-3" /> Rx sent to pharmacy
           </span>
         </div>
         <h3 className="font-semibold tracking-tight">{service.name}</h3>
