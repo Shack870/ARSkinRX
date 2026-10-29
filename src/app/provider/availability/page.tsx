@@ -116,7 +116,7 @@ function AvailabilityPageInner() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className={`mx-auto max-w-3xl space-y-6 ${inSetup ? "pb-20 md:pb-0" : ""}`}>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Availability</h1>
         <p className="text-[var(--muted-foreground)]">
@@ -134,8 +134,11 @@ function AvailabilityPageInner() {
               <p className="font-medium">Set your schedule to get started</p>
               <p className="text-sm text-[var(--muted-foreground)]">
                 Before you can take visits, tell us when you&apos;re available.
-                Add hours for each day you work, then save. Not sure yet? Start
-                with a standard week and adjust later.
+                Add hours for each day you work, then tap{" "}
+                <strong>Save and continue</strong> at the bottom. The rest of
+                your dashboard (Overview, Go Live, Schedule, Patients) stays
+                locked until you do. Not sure yet? Start with a standard week
+                and adjust later.
               </p>
               {windows.length === 0 && (
                 <Button
@@ -272,7 +275,13 @@ function AvailabilityPageInner() {
         )}
       </Card>
 
-      <div className="flex items-center gap-3">
+      <div
+        className={
+          inSetup
+            ? "fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-[var(--border)] bg-[var(--card)]/95 px-4 py-3 backdrop-blur md:static md:border-0 md:bg-transparent md:p-0"
+            : "flex items-center gap-3"
+        }
+      >
         <Button onClick={save} disabled={saving || loading}>
           {saving ? (
             <Loader2 className="h-4 w-4 animate-spin" />

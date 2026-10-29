@@ -51,11 +51,18 @@ export function SiteHeader() {
               </Button>
             </Link>
           ) : (
-            <Link href="/login" className="hidden sm:block">
-              <Button variant="ghost" size="sm">
-                Log in
-              </Button>
-            </Link>
+            <>
+              <Link href="/login" className="hidden md:block">
+                <Button variant="ghost" size="sm">
+                  Log in
+                </Button>
+              </Link>
+              <Link href="/register" className="hidden md:block">
+                <Button variant="outline" size="sm">
+                  Sign up
+                </Button>
+              </Link>
+            </>
           )}
           <Link href={!loading && user && role !== "client" ? dashboardHref(role) : "/book"}>
             <Button size="sm">
@@ -86,13 +93,33 @@ export function SiteHeader() {
                 {l.label}
               </Link>
             ))}
-            <Link
-              href={!loading && user ? dashboardHref(role) : "/login"}
-              onClick={() => setOpen(false)}
-              className="rounded-[var(--radius-md)] px-3 py-2 hover:bg-[var(--muted)]"
-            >
-              {!loading && user ? "My dashboard" : "Log in"}
-            </Link>
+            <div className="my-1 border-t border-[var(--border)]" />
+            {!loading && user ? (
+              <Link
+                href={dashboardHref(role)}
+                onClick={() => setOpen(false)}
+                className="rounded-[var(--radius-md)] px-3 py-2 hover:bg-[var(--muted)]"
+              >
+                My dashboard
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  onClick={() => setOpen(false)}
+                  className="rounded-[var(--radius-md)] px-3 py-2 hover:bg-[var(--muted)]"
+                >
+                  Log in
+                </Link>
+                <Link
+                  href="/register"
+                  onClick={() => setOpen(false)}
+                  className="rounded-[var(--radius-md)] px-3 py-2 hover:bg-[var(--muted)]"
+                >
+                  Sign up
+                </Link>
+              </>
+            )}
           </nav>
         </div>
       )}

@@ -3,16 +3,20 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Loader2, LogOut, Menu, X, type LucideIcon } from "lucide-react";
+import { Loader2, Lock, LogOut, Menu, X, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { usePaymentResume } from "@/lib/use-payment-resume";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/components/ui/toast";
 import type { Role } from "@/lib/types";
 
 export interface NavItem {
   label: string;
   href: string;
   icon: LucideIcon;
+  /** Shown with a lock; tapping explains instead of navigating. */
+  locked?: boolean;
+  lockedHint?: string;
 }
 
 export function DashboardShell({
@@ -20,6 +24,7 @@ export function DashboardShell({
   nav,
   switchNav,
   brandLabel,
+  notice,
   children,
 }: {
   role: Role;
@@ -27,6 +32,8 @@ export function DashboardShell({
   /** Cross-area links (e.g. "Admin" from the provider shell) for dual-role users. */
   switchNav?: NavItem[];
   brandLabel: string;
+  /** Rendered above the nav links (desktop sidebar and mobile drawer). */
+  notice?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const { user, profile, role: userRole, isAdmin, loading, signOut } = useAuth();
@@ -84,6 +91,7 @@ export function DashboardShell({
           <p className="px-3 pb-2 pt-3 text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
             {brandLabel}
           </p>
+          {notice}
           {nav.map((item) => (
             <NavLink key={item.href} item={item} active={pathname === item.href} />
           ))}
@@ -163,6 +171,7 @@ export function DashboardShell({
               <p className="px-3 pb-2 pt-2 text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
                 {brandLabel}
               </p>
+              {notice}
               {nav.map((item) => (
                 <NavLink
                   key={item.href}
@@ -220,17 +229,32 @@ function NavLink({
   large?: boolean;
 }) {
   const Icon = item.icon;
+  const toast = useToast();
+  const className = cn(
+    "flex w-full items-center gap-3 rounded-[var(--radius-md)] font-medium transition-colors",
+    large ? "px-3 py-3 text-[15px]" : "px-3 py-2 text-sm",
+    active
+      ? "bg-[var(--primary-soft)] text-[var(--primary)]"
+      : "text-[var(--muted-foreground)] hover:bg-[var(--muted)]",
+  );
+  if (item.locked) {
+    return (
+      <button
+        type="button"
+        onClick={() =>
+          toast.info(item.lockedHint ?? "Finish setup to open this page.")
+        }
+        className={cn(className, "opacity-60")}
+        aria-disabled
+      >
+        <Icon className={large ? "h-5 w-5" : "h-4 w-4"} />
+        {item.label}
+        <Lock className="ml-auto h-3.5 w-3.5" />
+      </button>
+    );
+  }
   return (
-    <Link
-      href={item.href}
-      className={cn(
-        "flex items-center gap-3 rounded-[var(--radius-md)] font-medium transition-colors",
-        large ? "px-3 py-3 text-[15px]" : "px-3 py-2 text-sm",
-        active
-          ? "bg-[var(--primary-soft)] text-[var(--primary)]"
-          : "text-[var(--muted-foreground)] hover:bg-[var(--muted)]",
-      )}
-    >
+    <Link href={item.href} className={className}>
       <Icon className={large ? "h-5 w-5" : "h-4 w-4"} />
       {item.label}
     </Link>

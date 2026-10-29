@@ -168,7 +168,7 @@ function ProviderProfilePageInner() {
   if (profile?.yearsExperience == null) missing.push("years of experience");
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className={`mx-auto max-w-3xl space-y-6 ${inSetup ? "pb-20 md:pb-0" : ""}`}>
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Your profile</h1>
@@ -331,7 +331,13 @@ function ProviderProfilePageInner() {
         )}
       </Card>
 
-      <div className="flex items-center gap-3">
+      <div
+        className={
+          inSetup
+            ? "fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-[var(--border)] bg-[var(--card)]/95 px-4 py-3 backdrop-blur md:static md:border-0 md:bg-transparent md:p-0"
+            : "flex items-center gap-3"
+        }
+      >
         <Button onClick={save} disabled={saving}>
           {saving ? (
             <Loader2 className="h-4 w-4 animate-spin" />
