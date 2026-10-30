@@ -16,12 +16,14 @@ export type SetupStep = "schedule" | "profile";
  * What a nurse still has to finish before the rest of the provider area opens.
  * Ordered by what we ask for first.
  */
-export function useProviderSetup(uid: string | undefined) {
+export function useProviderSetup(uid: string | undefined, isAdmin = false) {
   const { availability, loading: availLoading } = useProviderAvailability(uid);
   const { profile, loading: profileLoading } = useProviderProfile(uid);
 
   const loading = !uid || availLoading || profileLoading;
-  const hasSchedule = (availability?.windows?.length ?? 0) > 0;
+  // "Set" means the nurse has saved a schedule at least once — including an
+  // explicit "no scheduled hours, live visits only" choice (empty windows).
+  const hasSchedule = Boolean(availability);
   const hasProfile =
     Boolean(profile?.photoURL) &&
     (profile?.bio ?? "").trim().length >= BIO_MIN_CHARS;
@@ -29,7 +31,8 @@ export function useProviderSetup(uid: string | undefined) {
   let required: SetupStep | null = null;
   if (!loading) {
     if (!hasSchedule) required = "schedule";
-    else if (!hasProfile) required = "profile";
+    // The owner isn't locked out over her own profile; nurses who apply are.
+    else if (!hasProfile && !isAdmin) required = "profile";
   }
 
   return { loading, required, hasSchedule, hasProfile, profile, availability };
@@ -42,10 +45,10 @@ export function useProviderSetup(uid: string | undefined) {
  * edited any time from Availability.
  */
 export function ProviderSetupGate({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
-  const { loading, required } = useProviderSetup(user?.uid);
+  const { loading, required } = useProviderSetup(user?.uid, isAdmin);
 
   const target =
     required === "schedule"

@@ -205,7 +205,9 @@ function ScheduleCard({
       </div>
       {byDay.length === 0 ? (
         <p className="text-sm text-[var(--muted-foreground)]">
-          No hours set yet — patients can&apos;t book you until you add some.
+          No scheduled hours — you&apos;re live-visits only. Patients see you in
+          the provider list only while Go Live is on. Add hours any time to take
+          booked appointments too.
         </p>
       ) : (
         <ul className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">

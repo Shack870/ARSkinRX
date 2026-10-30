@@ -10,6 +10,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useProviderAvailability } from "@/lib/hooks";
 import { WEEKDAYS, formatDate } from "@/lib/datetime";
 import { useToast } from "@/components/ui/toast";
+import { useConfirm } from "@/components/ui/confirm";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,13 +38,14 @@ export default function AvailabilityPage() {
 }
 
 function AvailabilityPageInner() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const toast = useToast();
+  const confirm = useConfirm();
   const router = useRouter();
   const search = useSearchParams();
   const inSetup = search.get("setup") === "1";
   const { availability, loading } = useProviderAvailability(user?.uid);
-  const { hasProfile } = useProviderSetup(user?.uid);
+  const { hasProfile } = useProviderSetup(user?.uid, isAdmin);
   const [windows, setWindows] = React.useState<AvailabilityWindow[]>([]);
   const [timezone, setTimezone] = React.useState("America/Chicago");
   const [blackoutDates, setBlackoutDates] = React.useState<string[]>([]);
@@ -83,8 +85,14 @@ function AvailabilityPageInner() {
   async function save() {
     if (!user) return;
     if (windows.length === 0) {
-      toast.error("Add at least one block of hours before saving.");
-      return;
+      const ok = await confirm({
+        title: "Save with no scheduled hours?",
+        message:
+          "Patients won't be able to book you ahead of time, and you won't appear in the provider list unless you toggle Go Live. You can add hours any time.",
+        confirmLabel: "Live visits only",
+        cancelLabel: "Go back",
+      });
+      if (!ok) return;
     }
     const bad = windows.find(
       (w) => !w.startTime || !w.endTime || toMinutes(w.endTime) <= toMinutes(w.startTime),
@@ -106,7 +114,7 @@ function AvailabilityPageInner() {
       });
       toast.success("Availability saved");
       if (inSetup) {
-        router.replace(hasProfile ? "/provider" : `${PROFILE_PATH}?setup=1`);
+        router.replace(hasProfile || isAdmin ? "/provider" : `${PROFILE_PATH}?setup=1`);
       }
     } catch {
       toast.error("Couldn't save availability");
@@ -292,7 +300,7 @@ function AvailabilityPageInner() {
         </Button>
         {windows.length === 0 && !loading && (
           <p className="text-sm text-[var(--muted-foreground)]">
-            Add at least one block of hours.
+            No hours yet — saving means live visits only.
           </p>
         )}
       </div>

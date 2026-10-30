@@ -50,6 +50,10 @@ interface PublicProvider {
   ratingAvg: number;
   ratingCount: number;
   priceCents: number;
+  /** Has weekly hours — scheduled visits can be booked. */
+  bookable?: boolean;
+  /** Toggled Live right now for this service. */
+  liveNow?: boolean;
 }
 
 interface Slot {
@@ -535,8 +539,9 @@ function BookInner() {
                   <Loader2 className="mx-auto my-8 h-6 w-6 animate-spin text-[var(--primary)]" />
                 ) : providers.length === 0 ? (
                   <div className="rounded-[var(--radius-md)] border border-dashed border-[var(--border)] py-10 text-center text-sm text-[var(--muted-foreground)]">
-                    No providers are accepting {service?.name} visits yet. Please
-                    check back soon.
+                    No providers are available for {service?.name} visits right
+                    now. Nurses appear here when they have open hours or go live
+                    — please check back soon.
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -574,6 +579,12 @@ function BookInner() {
                           <p className="line-clamp-2 text-sm text-[var(--muted-foreground)]">
                             {p.bio}
                           </p>
+                          {p.liveNow && (
+                            <span className="mt-1 mr-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+                              Live now{p.bookable ? "" : " · no-wait visits only"}
+                            </span>
+                          )}
                           {p.ratingCount > 0 && (
                             <span className="mt-1 inline-flex items-center gap-1 text-xs text-[var(--muted-foreground)]">
                               <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
@@ -920,6 +931,15 @@ function BookInner() {
                   }
                 />
 
+                {provider?.bookable === false ? (
+                  <div className="mt-4 rounded-[var(--radius-md)] border border-dashed border-[var(--border)] p-4 text-sm text-[var(--muted-foreground)]">
+                    {provider.displayName} is seeing patients live right now and
+                    isn&apos;t taking scheduled appointments. Start a Live Connect
+                    visit above, or go back to choose another provider to book a
+                    time with.
+                  </div>
+                ) : (
+                <>
                 {/* Clear "or save by scheduling" alternative */}
                 <div className="my-6 flex items-center gap-3">
                   <span className="h-px flex-1 bg-[var(--border)]" />
@@ -1006,6 +1026,8 @@ function BookInner() {
                       </div>
                     ))}
                   </div>
+                )}
+                </>
                 )}
               </div>
             )}

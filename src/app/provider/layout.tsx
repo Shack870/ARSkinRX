@@ -43,7 +43,7 @@ export default function ProviderLayout({
   children: React.ReactNode;
 }) {
   const { user, isAdmin } = useAuth();
-  const setup = useProviderSetup(user?.uid);
+  const setup = useProviderSetup(user?.uid, isAdmin);
 
   // While first-time setup is pending, every other page is locked and the
   // sidebar says so, instead of silently bouncing taps back to the setup page.
@@ -95,7 +95,7 @@ function SetupNotice({
     <div className="mb-2 rounded-[var(--radius-md)] border border-[var(--primary)]/40 bg-[var(--primary-soft)] p-3 text-sm">
       <p className="font-semibold">Finish setup to unlock your dashboard</p>
       <ul className="mt-2 space-y-1.5">
-        <Step done={hasSchedule} label="1. Save your weekly schedule" />
+        <Step done={hasSchedule} label="1. Save your weekly schedule (or choose live-only)" />
         <Step done={hasProfile} label="2. Add a photo and bio" />
       </ul>
       <p className="mt-2 text-xs text-[var(--muted-foreground)]">
