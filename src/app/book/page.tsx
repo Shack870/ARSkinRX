@@ -4,7 +4,7 @@ import * as React from "react";
 import { Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, ArrowRight, Loader2, Pill, Star } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2, Pill, Star, Zap } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -172,11 +172,15 @@ function BookInner() {
   }
   const [liveAvailable, setLiveAvailable] = React.useState(false);
   const [liveEstimate, setLiveEstimate] = React.useState<LiveEstimate | null>(null);
+  /** True when the patient chose Live Connect before intake. */
+  const [liveIntent, setLiveIntent] = React.useState(false);
   const [livePriceCents, setLivePriceCents] = React.useState(9900);
   const [startingLive, setStartingLive] = React.useState(false);
   const slotsRef = React.useRef<HTMLHeadingElement>(null);
 
   const service = serviceId ? getService(serviceId) : null;
+  // A nurse is live (now, or after a short wait) for this service.
+  const liveReachable = Boolean(liveEstimate?.available) || liveAvailable;
 
   // Load providers when entering the provider step.
   React.useEffect(() => {
@@ -230,6 +234,7 @@ function BookInner() {
     if (step === 4 && appointmentId && !holdExpired) {
       await releaseHold();
     }
+    if (step === 2) setLiveIntent(false);
     setStep((s) => Math.max(s - 1, 0));
   }
 
@@ -330,7 +335,27 @@ function BookInner() {
       setError(problem);
       return;
     }
+    // Patient already chose Live Connect on the Provider step: go straight
+    // from intake to the live request + payment instead of the calendar.
+    if (liveIntent) {
+      await startLiveVisit();
+      return;
+    }
     if (await ensureAccount()) next();
+  }
+
+  /** Patient picked "see a nurse now" up front; intake comes first, then live checkout. */
+  function chooseLive(p?: PublicProvider) {
+    const live =
+      p ??
+      providers.find((x) => x.uid === liveEstimate?.providerId) ??
+      providers.find((x) => x.liveNow) ??
+      null;
+    setProvider(live);
+    setSlot(null);
+    setLiveIntent(true);
+    setError(null);
+    setStep(2);
   }
 
   async function handlePhotos(files: FileList | null) {
@@ -534,18 +559,47 @@ function BookInner() {
             {/* Step 1: Provider */}
             {step === 1 && (
               <div>
-                <h2 className="mb-4 text-lg font-semibold">Choose a provider</h2>
+                {/* Choice 1: see a nurse now (Live Connect) */}
+                {liveReachable && (
+                  <>
+                    <LiveConnectCard
+                      providers={providers}
+                      available={liveAvailable}
+                      estimate={liveEstimate}
+                      priceCents={livePriceCents}
+                      scheduledPriceCents={service?.defaultPriceCents ?? 0}
+                      starting={false}
+                      onStart={() => chooseLive()}
+                    />
+                    <div className="my-6 flex items-center gap-3">
+                      <span className="h-px flex-1 bg-[var(--border)]" />
+                      <span className="text-sm font-semibold text-[var(--muted-foreground)]">
+                        OR SCHEDULE AHEAD
+                      </span>
+                      <span className="h-px flex-1 bg-[var(--border)]" />
+                    </div>
+                  </>
+                )}
+
+                <h2 className="mb-1 text-lg font-semibold">
+                  {liveReachable
+                    ? `Book a time — ${formatCurrency(service?.defaultPriceCents ?? 0)}`
+                    : "Choose a provider"}
+                </h2>
+                <p className="mb-4 text-sm text-[var(--muted-foreground)]">
+                  Pick a nurse practitioner and choose a time that works for you.
+                </p>
                 {loadingProviders ? (
                   <Loader2 className="mx-auto my-8 h-6 w-6 animate-spin text-[var(--primary)]" />
-                ) : providers.length === 0 ? (
+                ) : providers.filter((p) => p.bookable !== false).length === 0 ? (
                   <div className="rounded-[var(--radius-md)] border border-dashed border-[var(--border)] py-10 text-center text-sm text-[var(--muted-foreground)]">
-                    No providers are available for {service?.name} visits right
-                    now. Nurses appear here when they have open hours or go live
-                    — please check back soon.
+                    {providers.length > 0
+                      ? `No nurses have open hours for scheduled ${service?.name} visits right now — use Live Connect above to be seen today.`
+                      : `No providers are available for ${service?.name} visits right now. Nurses appear here when they have open hours or go live — please check back soon.`}
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {providers.map((p) => (
+                    {providers.filter((p) => p.bookable !== false).map((p) => (
                       <div key={p.uid} className="relative">
                       <button
                         onClick={() => {
@@ -582,7 +636,7 @@ function BookInner() {
                           {p.liveNow && (
                             <span className="mt-1 mr-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
                               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-                              Live now{p.bookable ? "" : " · no-wait visits only"}
+                              Also live now
                             </span>
                           )}
                           {p.ratingCount > 0 && (
@@ -613,6 +667,29 @@ function BookInner() {
             {/* Step 2: Intake */}
             {step === 2 && (
               <div className="space-y-4">
+                {liveIntent && (
+                  <div className="flex items-start justify-between gap-3 rounded-[var(--radius-md)] border-2 border-[#d4af37] bg-gradient-to-br from-[#fbf6e3] to-[#f6edd2] p-4 text-sm">
+                    <div>
+                      <p className="font-semibold text-[#8a6d12]">
+                        Live Connect — {formatCurrency(livePriceCents)}
+                      </p>
+                      <p className="mt-0.5 text-[var(--muted-foreground)]">
+                        {`A few quick questions so ${provider?.displayName ?? "your nurse"} can prepare, then you'll pay and connect by video.`}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLiveIntent(false);
+                        setProvider(null);
+                        setStep(1);
+                      }}
+                      className="shrink-0 text-xs text-[var(--muted-foreground)] underline"
+                    >
+                      Schedule instead
+                    </button>
+                  </div>
+                )}
                 {!user && (
                   <div className="space-y-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--primary-soft)]/40 p-4">
                     <div className="flex items-start justify-between gap-3">
@@ -1130,10 +1207,21 @@ function BookInner() {
               {step === 2 && (
                 <Button
                   onClick={continueFromIntake}
-                  disabled={!intake.concern.trim() || creatingAccount}
+                  disabled={!intake.concern.trim() || creatingAccount || startingLive}
                 >
-                  {creatingAccount && <Loader2 className="h-4 w-4 animate-spin" />}
-                  Continue <ArrowRight className="h-4 w-4" />
+                  {(creatingAccount || startingLive) && (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  )}
+                  {liveIntent ? (
+                    <>
+                      <Zap className="h-4 w-4" />
+                      {`Pay ${formatCurrency(livePriceCents)} & connect`}
+                    </>
+                  ) : (
+                    <>
+                      Continue <ArrowRight className="h-4 w-4" />
+                    </>
+                  )}
                 </Button>
               )}
               {step === 3 && (
