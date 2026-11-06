@@ -4,6 +4,7 @@ import { adminDb } from "@/lib/firebase/admin";
 import { COLLECTIONS } from "@/lib/firebase/collections";
 import { getService } from "@/lib/services";
 import { sendEmail, sendSms, reminderEmail } from "@/lib/notify";
+import { sendPush } from "@/lib/push-server";
 import { resolvePrefs } from "@/lib/notifications";
 import { formatTime, formatDateTime } from "@/lib/datetime";
 import { advanceStaleLiveRequests } from "@/lib/live-server";
@@ -138,6 +139,13 @@ export async function runSweep(): Promise<SweepResult> {
             }),
           });
         }
+        void sendPush(a.clientId, {
+          title: key === "dayOf" ? "Your visit is today" : "Upcoming visit",
+          body: `${serviceName} ${distanceLabel(until)} — ${whenText}.`,
+          url: `/dashboard/appointments/${docSnap.id}`,
+          threadId: "appointments",
+          collapseId: `reminder-${docSnap.id}`,
+        });
         updates[`remindersSent.${key}`] = now;
         reminders++;
       }
@@ -158,6 +166,14 @@ export async function runSweep(): Promise<SweepResult> {
             body: `ARSkinRX: Your ${serviceName} starts at ${formatTime(a.start)}. Join from your dashboard. Reply STOP to opt out.`,
           });
         }
+        void sendPush(a.clientId, {
+          title: "Starting soon",
+          body: `Your ${serviceName} starts at ${formatTime(a.start)}. Tap to join.`,
+          url: `/dashboard/appointments/${docSnap.id}`,
+          threadId: "appointments",
+          collapseId: `reminder-${docSnap.id}`,
+          interruptionLevel: "time-sensitive",
+        });
         updates.reminderSentAt = now;
       }
 

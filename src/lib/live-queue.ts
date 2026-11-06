@@ -3,6 +3,7 @@ import "server-only";
 import { adminDb } from "@/lib/firebase/admin";
 import { COLLECTIONS } from "@/lib/firebase/collections";
 import { refundLiveRequest } from "@/lib/refunds-server";
+import { sendPush } from "@/lib/push-server";
 import {
   LIVE_VISIT_MS,
   SCHEDULE_INSTEAD_WAIT_MS,
@@ -379,6 +380,17 @@ export async function popToOffer(
     });
     ok = true;
   });
+  if (ok) {
+    // Ring the nurse's phone even if the app is in the background.
+    void sendPush(providerId, {
+      title: "Live visit request",
+      body: "A patient is waiting for a video visit. Tap to accept.",
+      url: "/provider",
+      threadId: "live",
+      collapseId: `live-offer-${liveRequestId}`,
+      interruptionLevel: "time-sensitive",
+    });
+  }
   return ok;
 }
 

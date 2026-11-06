@@ -12,11 +12,13 @@ import {
   isFresh,
   loadServiceTimelines,
   onProviderFreed,
+  providerDisplayName,
   recomputeQueueForProvider,
   tickLiveQueue,
 } from "@/lib/live-queue";
 import { canAdmitAt } from "@/lib/live-queue-math";
 import { refundLiveRequest } from "@/lib/refunds-server";
+import { sendPush } from "@/lib/push-server";
 import type { ServiceType } from "@/lib/types";
 
 export { LIVE_FRESH_MS, OFFER_TTL_MS };
@@ -355,6 +357,7 @@ export async function acceptLiveRequest(
   const presRef = adminDb.collection(COLLECTIONS.presence).doc(providerId);
   let result: AcceptResult = { ok: false, reason: "error" };
   let queuedProviderId: string | null = null;
+  let matchedClientId: string | null = null;
 
   await adminDb.runTransaction(async (tx) => {
     const reqSnap = await tx.get(reqRef);
@@ -454,9 +457,22 @@ export async function acceptLiveRequest(
       updatedAt: now,
     });
     queuedProviderId = req.queuedProviderId ?? null;
+    matchedClientId = req.clientId as string;
 
     result = { ok: true, appointmentId: apptRef.id };
   });
+
+  if (result.ok && matchedClientId) {
+    const nurse = await providerDisplayName(providerId).catch(() => "Your nurse");
+    void sendPush(matchedClientId, {
+      title: `${nurse} is ready`,
+      body: "Your nurse practitioner is joining your video visit now. Tap to join.",
+      url: `/live/${liveRequestId}`,
+      threadId: "live",
+      collapseId: `live-${liveRequestId}`,
+      interruptionLevel: "time-sensitive",
+    });
+  }
 
   // Everyone behind them moves up a place.
   if (result.ok && queuedProviderId) {

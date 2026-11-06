@@ -133,6 +133,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = React.useCallback(async () => {
+    // Native app: drop this device's push token while we still have a session.
+    try {
+      const { unregisterNativePush } = await import("@/lib/native");
+      await unregisterNativePush(auth.currentUser);
+    } catch {
+      // non-critical
+    }
     await fbSignOut(auth);
     await postSession(null);
   }, []);

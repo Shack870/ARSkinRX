@@ -6,6 +6,7 @@ import { freeProvider } from "@/lib/live-server";
 import { tickLiveQueue } from "@/lib/live-queue";
 import { transferLiveVisitShare } from "@/lib/connect-server";
 import { sendEmail, visitSummaryEmail } from "@/lib/notify";
+import { sendPush } from "@/lib/push-server";
 import { resolvePrefs } from "@/lib/notifications";
 import { getService } from "@/lib/services";
 import { createPrescriptionsForVisit, parseItems } from "@/lib/prescriptions-server";
@@ -118,6 +119,14 @@ export async function POST(
 
   // Email the patient their visit summary (best effort, respects email prefs).
   if (body.notes) {
+    void sendPush(a.clientId, {
+      title: "Your visit summary is ready",
+      body: rxItems
+        ? "Your nurse's notes are in. Your prescription is being finalized."
+        : "Your nurse's notes and plan are ready to view.",
+      url: `/dashboard/appointments/${id}`,
+      threadId: "appointments",
+    });
     try {
       const clientSnap = await adminDb
         .collection(COLLECTIONS.users)

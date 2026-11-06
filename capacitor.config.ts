@@ -22,6 +22,24 @@ const config: CapacitorConfig = {
       "*.googleapis.com",
     ],
   },
+  plugins: {
+    PushNotifications: {
+      presentationOptions: ["badge", "sound", "alert"],
+    },
+    SplashScreen: {
+      // Hidden by NativeBridge as soon as the site mounts; the duration is a
+      // safety net for slow networks.
+      launchShowDuration: 4000,
+      launchAutoHide: true,
+      launchFadeOutDuration: 200,
+      backgroundColor: "#fbfaf7",
+      showSpinner: false,
+    },
+    StatusBar: {
+      style: "LIGHT",
+      backgroundColor: "#fbfaf7",
+    },
+  },
   ios: {
     contentInset: "automatic",
     backgroundColor: "#fbfaf7",

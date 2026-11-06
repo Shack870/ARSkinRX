@@ -14,5 +14,6 @@ export const COLLECTIONS = {
   auditLogs: "auditLogs",
   presence: "presence",
   liveRequests: "liveRequests",
+  pushTokens: "pushTokens",
   settings: "settings",
 } as const;

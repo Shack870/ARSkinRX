@@ -11,6 +11,7 @@ import {
   sendEmail,
   sendSms,
 } from "@/lib/notify";
+import { sendPush, sendPushToMany } from "@/lib/push-server";
 import { refundAppointment } from "@/lib/refunds-server";
 import { getService } from "@/lib/services";
 import type {
@@ -178,10 +179,21 @@ export async function createPrescriptionsForVisit(opts: {
         pending,
       });
       const sms = `ARSkinRX: ${actorName} recommended an Rx for ${patientName}. ${pending} waiting for your review: ${APP_URL}/admin/prescriptions`;
-      for (const r of await adminRecipients()) {
+      const admins = await adminRecipients();
+      for (const r of admins) {
         if (r.email) await sendEmail({ to: r.email, ...mail });
         if (r.phone) await sendSms({ to: r.phone, body: sms });
       }
+      void sendPushToMany(
+        admins.map((r) => r.uid),
+        {
+          title: "Prescription to review",
+          body: `${actorName} recommended an Rx for ${patientName}. ${pending} waiting.`,
+          url: "/admin/prescriptions",
+          threadId: "rx",
+          collapseId: "rx-review",
+        },
+      );
     } catch (err) {
       console.error("[rx] review notification failed", err);
     }
@@ -318,6 +330,12 @@ export async function declinePrescription(
         body: `ARSkinRX: Crystal declined your Rx for ${patientName} (${cleanReason.slice(0, 80)}). Please call them${patientPhone ? ` at ${patientPhone}` : ""}. Reply STOP to opt out.`,
       });
     }
+    void sendPush(rx.providerId, {
+      title: "Rx declined",
+      body: `Crystal declined your Rx for ${patientName}. Please follow up with them.`,
+      url: `/provider/appointments/${rx.appointmentId}`,
+      threadId: "rx",
+    });
   } catch (err) {
     console.error("[rx] decline notification failed", err);
   }
@@ -357,6 +375,14 @@ export async function markPrescriptionSent(
     timestamp: FieldValue.serverTimestamp(),
   });
   await batch.commit();
+
+  void sendPush(rx.clientId, {
+    title: "Prescription sent",
+    body: "Your prescription was sent to our pharmacy. They'll contact you to fill and ship it.",
+    url: `/dashboard/appointments/${rx.appointmentId}`,
+    threadId: "rx",
+    collapseId: `rx-sent-${rx.appointmentId}`,
+  });
 }
 
 /* ───────────────────────────── reminders ───────────────────────────── */
@@ -384,10 +410,21 @@ export async function nudgeStaleRecommendations(now = Date.now()): Promise<numbe
   const oldestHours = Math.round((now - oldest) / (60 * 60 * 1000));
   const mail = rxReminderEmail({ pending: snap.size, oldestHours });
   const sms = `ARSkinRX: ${snap.size} prescription${snap.size === 1 ? "" : "s"} waiting for your review (oldest ~${oldestHours}h). ${APP_URL}/admin/prescriptions`;
-  for (const r of await adminRecipients()) {
+  const admins = await adminRecipients();
+  for (const r of admins) {
     if (r.email) await sendEmail({ to: r.email, ...mail });
     if (r.phone) await sendSms({ to: r.phone, body: sms });
   }
+  void sendPushToMany(
+    admins.map((r) => r.uid),
+    {
+      title: "Prescriptions waiting",
+      body: `${snap.size} prescription${snap.size === 1 ? "" : "s"} waiting for your review (oldest ~${oldestHours}h).`,
+      url: "/admin/prescriptions",
+      threadId: "rx",
+      collapseId: "rx-review",
+    },
+  );
 
   const batch = adminDb.batch();
   for (const d of stale) batch.update(d.ref, { reviewNudgedAt: now });

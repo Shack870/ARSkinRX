@@ -5,6 +5,7 @@ import { adminDb } from "@/lib/firebase/admin";
 import { COLLECTIONS } from "@/lib/firebase/collections";
 import { getService } from "@/lib/services";
 import { sendEmail, sendSms, bookingConfirmedEmail } from "@/lib/notify";
+import { sendPush } from "@/lib/push-server";
 import { resolvePrefs } from "@/lib/notifications";
 import { formatDateTime } from "@/lib/datetime";
 import { formatCurrency } from "@/lib/utils";
@@ -180,6 +181,12 @@ export async function confirmAppointmentBooked(
         body: `ARSkinRX: Your ${service?.name ?? "visit"} is booked for ${whenText}. Join from your dashboard. Reply STOP to opt out.`,
       });
     }
+    void sendPush(appt.clientId, {
+      title: "Visit booked",
+      body: `Your ${service?.name ?? "visit"} is set for ${whenText}.`,
+      url: `/dashboard/appointments/${appt.id}`,
+      threadId: "appointments",
+    });
   } catch {
     // Notifications are non-critical.
   }

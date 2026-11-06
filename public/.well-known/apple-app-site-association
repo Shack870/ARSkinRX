@@ -1,0 +1,17 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["W5KVNXM2AL.com.arskinrx.app"],
+        "components": [
+          { "/": "/api/*", "exclude": true },
+          { "/": "/.well-known/*", "exclude": true },
+          { "/": "/*" }
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": ["W5KVNXM2AL.com.arskinrx.app"]
+  }
+}

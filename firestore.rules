@@ -179,5 +179,10 @@ service cloud.firestore {
       );
       allow write: if false;
     }
+
+    // Native push device tokens. Server only (see /api/push/register).
+    match /pushTokens/{token} {
+      allow read, write: if false;
+    }
   }
 }
