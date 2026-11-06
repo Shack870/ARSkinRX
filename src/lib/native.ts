@@ -26,9 +26,16 @@ export function nativePlatform(): "ios" | "android" | "web" {
   return p === "ios" || p === "android" ? p : "web";
 }
 
-/** Turns an absolute arskinrx.com URL (universal link / push) into a router path. */
+/**
+ * Turns a universal link, push URL or `arskinrx://open?path=…` scheme URL
+ * into a router path.
+ */
 export function toInAppPath(url: string): string | null {
   try {
+    if (url.startsWith("arskinrx://")) {
+      const path = new URL(url).searchParams.get("path");
+      return path && path.startsWith("/") && !path.startsWith("//") ? path : null;
+    }
     const u = new URL(url, window.location.origin);
     if (u.origin !== window.location.origin && !/(^|\.)arskinrx\.com$/.test(u.hostname)) {
       return null;
@@ -115,12 +122,44 @@ export async function unregisterNativePush(user: User | null): Promise<void> {
   }
 }
 
-/** Opens a URL in the system browser sheet (SFSafariViewController) from the app. */
-export async function openExternal(url: string): Promise<void> {
-  if (!isNativeApp()) {
-    window.open(url, "_blank", "noopener");
+/** Closes the in-app Safari sheet if one is open (no-op otherwise). */
+export async function closeExternal(): Promise<void> {
+  if (!isNativeApp()) return;
+  try {
+    const { Browser } = await import("@capacitor/browser");
+    await Browser.close();
+  } catch {
+    // nothing open
+  }
+}
+
+/**
+ * Sends the user to Stripe Checkout. On the website this is a plain redirect.
+ * In the app, Checkout opens in the system Safari sheet so Apple Pay is
+ * available; Stripe then returns to /pay/return, which reopens the app.
+ * Resolves when the sheet closes (payment done or user dismissed it).
+ */
+export async function goToCheckout(url: string): Promise<void> {
+  let external = false;
+  try {
+    external = new URL(url, window.location.origin).origin !== window.location.origin;
+  } catch {
+    external = false;
+  }
+  if (!isNativeApp() || !external) {
+    window.location.href = url;
     return;
   }
   const { Browser } = await import("@capacitor/browser");
-  await Browser.open({ url, presentationStyle: "popover" });
+  await new Promise<void>((resolve) => {
+    let handle: { remove: () => void } | null = null;
+    Browser.addListener("browserFinished", () => {
+      handle?.remove();
+      resolve();
+    }).then((h) => (handle = h));
+    Browser.open({ url }).catch(() => {
+      handle?.remove();
+      resolve();
+    });
+  });
 }

@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 
 import { useAuth } from "@/lib/auth-context";
-import { isNativeApp, registerNativePush, toInAppPath } from "@/lib/native";
+import { closeExternal, isNativeApp, registerNativePush, toInAppPath } from "@/lib/native";
 import { useToast } from "@/components/ui/toast";
 
 /**
@@ -33,7 +33,10 @@ export function NativeBridge() {
       SplashScreen.hide().catch(() => {});
       const h = await App.addListener("appUrlOpen", ({ url }) => {
         const path = toInAppPath(url);
-        if (path) router.push(path);
+        if (!path) return;
+        // Returning from Stripe Checkout in the Safari sheet: dismiss it first.
+        if (url.startsWith("arskinrx://")) void closeExternal();
+        router.push(path);
       });
       cleanups.push(() => h.remove());
     })();

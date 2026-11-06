@@ -7,6 +7,7 @@ import { getService } from "@/lib/services";
 import { getStripe } from "@/lib/stripe";
 import { confirmAppointmentBooked } from "@/lib/appointments-server";
 import { rateLimit } from "@/lib/rate-limit";
+import { checkoutReturnUrls } from "@/lib/checkout-return";
 import type { ServiceType } from "@/lib/types";
 
 
@@ -26,7 +27,7 @@ export async function POST(req: Request) {
   const user = await verifyBearer(req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { appointmentId } = await req.json().catch(() => ({}));
+  const { appointmentId, native } = await req.json().catch(() => ({}));
   if (!appointmentId) {
     return NextResponse.json({ error: "Missing appointmentId" }, { status: 400 });
   }
@@ -100,8 +101,11 @@ export async function POST(req: Request) {
         }
       : undefined,
     metadata: { appointmentId, payoutVia: autoSplit ? "stripe" : "manual" },
-    success_url: `${origin}/dashboard/appointments/${appointmentId}?paid=1&session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${origin}/dashboard/appointments/${appointmentId}?canceled=1`,
+    ...checkoutReturnUrls(origin, {
+      successPath: `/dashboard/appointments/${appointmentId}?paid=1`,
+      cancelPath: `/dashboard/appointments/${appointmentId}?canceled=1`,
+      native: native === true,
+    }),
   });
 
   return NextResponse.json({ url: session.url });

@@ -7,6 +7,7 @@ import { getService } from "@/lib/services";
 import { getStripe } from "@/lib/stripe";
 import { LIVE_SEARCH_MS } from "@/lib/live-server";
 import { rateLimit } from "@/lib/rate-limit";
+import { checkoutReturnUrls } from "@/lib/checkout-return";
 import type { ServiceType } from "@/lib/types";
 
 
@@ -23,7 +24,7 @@ export async function POST(req: Request) {
   const user = await verifyBearer(req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { liveRequestId } = await req.json().catch(() => ({}));
+  const { liveRequestId, native } = await req.json().catch(() => ({}));
   if (!liveRequestId) {
     return NextResponse.json({ error: "Missing liveRequestId" }, { status: 400 });
   }
@@ -70,8 +71,11 @@ export async function POST(req: Request) {
       },
     ],
     metadata: { liveRequestId },
-    success_url: `${origin}/live/${liveRequestId}?paid=1&session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${origin}/book?canceled=1`,
+    ...checkoutReturnUrls(origin, {
+      successPath: `/live/${liveRequestId}?paid=1`,
+      cancelPath: `/book?canceled=1`,
+      native: native === true,
+    }),
   });
 
   return NextResponse.json({ url: session.url });

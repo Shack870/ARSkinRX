@@ -25,6 +25,7 @@ import { formatCurrency } from "@/lib/utils";
 import { formatRelativeDay, formatTime } from "@/lib/datetime";
 import { normalizeUsPhone } from "@/lib/phone";
 import { ageFromDob, MIN_PATIENT_AGE, maxAdultDobIso, parseDob } from "@/lib/dob";
+import { goToCheckout, isNativeApp } from "@/lib/native";
 import type { LiveEstimate, ServiceType } from "@/lib/types";
 
 function initials(name: string) {
@@ -440,11 +441,13 @@ function BookInner() {
 
       const coRes = await authedFetch("/api/live/checkout", {
         method: "POST",
-        body: JSON.stringify({ liveRequestId: reqData.liveRequestId }),
+        body: JSON.stringify({ liveRequestId: reqData.liveRequestId, native: isNativeApp() }),
       });
       const coData = await coRes.json();
       if (!coRes.ok) throw new Error(coData.error ?? "Payment failed.");
-      window.location.href = coData.url;
+      await goToCheckout(coData.url);
+      // Native only: the Safari sheet closed without completing payment.
+      if (isNativeApp()) setStartingLive(false);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Something went wrong.";
       setError(msg);
@@ -460,11 +463,12 @@ function BookInner() {
     try {
       const checkoutRes = await authedFetch("/api/checkout", {
         method: "POST",
-        body: JSON.stringify({ appointmentId }),
+        body: JSON.stringify({ appointmentId, native: isNativeApp() }),
       });
       const checkout = await checkoutRes.json();
       if (!checkoutRes.ok) throw new Error(checkout.error ?? "Payment failed.");
-      window.location.href = checkout.url;
+      await goToCheckout(checkout.url);
+      if (isNativeApp()) setSubmitting(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong.");
       setSubmitting(false);

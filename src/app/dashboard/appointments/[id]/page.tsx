@@ -24,6 +24,7 @@ import { SERVICE_MAP } from "@/lib/services";
 import { formatCurrency } from "@/lib/utils";
 import { formatDate, formatDateTime, formatTime } from "@/lib/datetime";
 import { isJoinable, windowState } from "@/lib/appointment-window";
+import { goToCheckout, isNativeApp } from "@/lib/native";
 import { HoldTimer } from "@/components/hold-timer";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -341,11 +342,12 @@ function PendingPayment({
     try {
       const res = await authedFetch("/api/checkout", {
         method: "POST",
-        body: JSON.stringify({ appointmentId }),
+        body: JSON.stringify({ appointmentId, native: isNativeApp() }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Payment failed.");
-      window.location.href = data.url;
+      await goToCheckout(data.url);
+      if (isNativeApp()) setLoading(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong.");
       setLoading(false);
