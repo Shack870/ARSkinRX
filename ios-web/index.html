@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>ARSkinRX</title>
+    <style>
+      html, body { height: 100%; margin: 0; background: #fbfaf7; color: #1f2a28;
+        font-family: -apple-system, system-ui, Helvetica, Arial, sans-serif; }
+      main { min-height: 100%; display: flex; flex-direction: column; align-items: center;
+        justify-content: center; text-align: center; padding: 32px 24px;
+        padding-top: calc(32px + env(safe-area-inset-top)); box-sizing: border-box; }
+      .mark { width: 72px; height: 72px; border-radius: 18px; background: #2f6f6a; color: #fff;
+        font-weight: 700; font-size: 30px; display: flex; align-items: center; justify-content: center; }
+      h1 { font-size: 22px; margin: 20px 0 8px; }
+      p { margin: 0 0 20px; color: #4b5a57; line-height: 1.5; max-width: 320px; }
+      button { background: #2f6f6a; color: #fff; border: 0; border-radius: 999px;
+        padding: 14px 24px; font-size: 16px; font-weight: 600; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="mark">AR</div>
+      <h1>You're offline</h1>
+      <p>ARSkinRX needs an internet connection for video visits and booking. Reconnect and try again.</p>
+      <button onclick="location.href='https://arskinrx.com/'">Try again</button>
+    </main>
+  </body>
+</html>

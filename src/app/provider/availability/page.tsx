@@ -286,7 +286,7 @@ function AvailabilityPageInner() {
       <div
         className={
           inSetup
-            ? "fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-[var(--border)] bg-[var(--card)]/95 px-4 py-3 backdrop-blur md:static md:border-0 md:bg-transparent md:p-0"
+            ? "fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-[var(--border)] bg-[var(--card)]/95 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur md:static md:border-0 md:bg-transparent md:p-0"
             : "flex items-center gap-3"
         }
       >

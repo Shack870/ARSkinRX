@@ -126,7 +126,7 @@ export function DashboardShell({
       </aside>
 
       {/* Mobile top bar */}
-      <div className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-[var(--border)] bg-[var(--card)]/90 px-4 backdrop-blur md:hidden">
+      <div className="sticky top-0 z-40 flex h-[calc(3.5rem+env(safe-area-inset-top))] items-center justify-between border-b border-[var(--border)] bg-[var(--card)]/90 px-4 pt-[env(safe-area-inset-top)] backdrop-blur md:hidden">
         <Link href="/" className="flex items-center gap-2">
           <span className="flex h-7 w-7 items-center justify-center rounded-[var(--radius-sm)] bg-[var(--primary)] text-xs font-bold text-[var(--primary-foreground)]">
             AR
@@ -151,7 +151,7 @@ export function DashboardShell({
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             onClick={() => setMobileOpen(false)}
           />
-          <div className="absolute inset-y-0 left-0 flex w-72 max-w-[82%] flex-col bg-[var(--card)] shadow-2xl">
+          <div className="absolute inset-y-0 left-0 flex w-72 max-w-[82%] flex-col bg-[var(--card)] pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] shadow-2xl">
             <div className="flex h-14 items-center justify-between border-b border-[var(--border)] px-4">
               <span className="flex items-center gap-2 font-semibold">
                 <span className="flex h-7 w-7 items-center justify-center rounded-[var(--radius-sm)] bg-[var(--primary)] text-xs font-bold text-[var(--primary-foreground)]">
