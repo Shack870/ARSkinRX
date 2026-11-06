@@ -14,7 +14,6 @@ import {
 import { refundAppointment } from "@/lib/refunds-server";
 import { getService } from "@/lib/services";
 import type {
-  PatientPharmacy,
   Prescription,
   PrescriptionItem,
   ServiceType,
@@ -33,9 +32,10 @@ function cleanItem(raw: unknown): PrescriptionItem | null {
   const sig = String(r.sig ?? "").trim();
   const quantity = String(r.quantity ?? "").trim();
   const refills = Number(r.refills ?? 0);
-  if (!drug || !sig) return null;
+  // Free-text prescriptions carry everything in `drug`; sig is optional.
+  if (!drug) return null;
   return {
-    drug: drug.slice(0, 120),
+    drug: drug.slice(0, 1000),
     strength: strength.slice(0, 60),
     sig: sig.slice(0, 500),
     quantity: quantity.slice(0, 60),
@@ -109,7 +109,6 @@ export async function createPrescriptionsForVisit(opts: {
     userName(opts.actor.uid),
     adminDb.collection(COLLECTIONS.users).doc(opts.clientId).get(),
   ]);
-  const pharmacy = (clientSnap.get("pharmacy") as PatientPharmacy | undefined) ?? null;
   const autoApproved = opts.actor.isAdmin;
 
   // Don't double-create if the complete call is retried.
@@ -143,7 +142,6 @@ export async function createPrescriptionsForVisit(opts: {
       recommendedBy: opts.actor.uid,
       recommendedByName: actorName,
       recommendedAt: now,
-      pharmacy,
       createdAt: now,
       updatedAt: now,
       ...(autoApproved

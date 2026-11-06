@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { CalendarRange, Video } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
-import { useProviderAppointments } from "@/lib/hooks";
+import { useProviderAppointments, usePrescriptionsByAppointment } from "@/lib/hooks";
 import { SERVICE_MAP } from "@/lib/services";
 import { formatDateTime } from "@/lib/datetime";
 import { Card } from "@/components/ui/card";
@@ -12,11 +12,16 @@ import { Button } from "@/components/ui/button";
 import { WaitingBadge } from "@/components/visit/waiting-badge";
 import { LiveBadge } from "@/components/live/live-badge";
 import { holdPresenceForVisit } from "@/components/live/presence-context";
-import type { Appointment } from "@/lib/types";
+import { RxSentChip } from "@/components/rx/rx-sent-chip";
+import type { Appointment, Prescription } from "@/lib/types";
 
 export default function SchedulePage() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { appointments, loading } = useProviderAppointments(user?.uid);
+  // Admin (Crystal) sees every prescription; a nurse only her own visits'.
+  const rxByAppt = usePrescriptionsByAppointment(
+    isAdmin ? { admin: true } : { providerId: user?.uid },
+  );
 
   const now = Date.now();
   const upcoming = appointments.filter(
@@ -35,8 +40,23 @@ export default function SchedulePage() {
         </p>
       </div>
 
-      <Section title="Upcoming" appts={upcoming} loading={loading} emptyText="No upcoming visits." />
-      <Section title="Past" appts={past} loading={loading} emptyText="No past visits yet." showJoin={false} />
+      <Section
+        title="Upcoming"
+        appts={upcoming}
+        loading={loading}
+        emptyText="No upcoming visits."
+        rxByAppt={rxByAppt}
+        canMarkSent={isAdmin}
+      />
+      <Section
+        title="Past"
+        appts={past}
+        loading={loading}
+        emptyText="No past visits yet."
+        showJoin={false}
+        rxByAppt={rxByAppt}
+        canMarkSent={isAdmin}
+      />
     </div>
   );
 }
@@ -47,12 +67,16 @@ function Section({
   loading,
   emptyText,
   showJoin = true,
+  rxByAppt,
+  canMarkSent,
 }: {
   title: string;
   appts: Appointment[];
   loading: boolean;
   emptyText: string;
   showJoin?: boolean;
+  rxByAppt: Map<string, Prescription[]>;
+  canMarkSent: boolean;
 }) {
   return (
     <Card className="p-6">
@@ -86,7 +110,8 @@ function Section({
                     {formatDateTime(a.start)}
                   </p>
                 </Link>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center justify-end gap-3">
+                  <RxSentChip prescriptions={rxByAppt.get(a.id)} canMarkSent={canMarkSent} />
                   <Badge
                     variant={
                       a.status === "completed"

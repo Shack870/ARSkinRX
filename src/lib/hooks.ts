@@ -180,6 +180,37 @@ export function usePrescriptionsForAppointment(
   return { prescriptions, loading };
 }
 
+/**
+ * Every prescription a reader may see, grouped by appointment — one listener
+ * for a whole appointment list. Nurses are scoped to their own visits
+ * (`providerId`); admins read everything. Returns an empty map until ready.
+ */
+export function usePrescriptionsByAppointment(
+  scope: { providerId: string | undefined } | { admin: true } | null,
+) {
+  const [byAppt, setByAppt] = React.useState<Map<string, Prescription[]>>(new Map());
+  const providerId = scope && "providerId" in scope ? scope.providerId : undefined;
+  const admin = Boolean(scope && "admin" in scope && scope.admin);
+  React.useEffect(() => {
+    if (!admin && !providerId) return;
+    const q = admin
+      ? query(collection(db, COLLECTIONS.prescriptions))
+      : query(collection(db, COLLECTIONS.prescriptions), where("providerId", "==", providerId));
+    return onSnapshot(q, (snap) => {
+      const m = new Map<string, Prescription[]>();
+      for (const d of snap.docs) {
+        const p = d.data() as Prescription;
+        const list = m.get(p.appointmentId) ?? [];
+        list.push(p);
+        m.set(p.appointmentId, list);
+      }
+      for (const list of m.values()) list.sort((a, b) => a.createdAt - b.createdAt);
+      setByAppt(m);
+    });
+  }, [admin, providerId]);
+  return byAppt;
+}
+
 export function useClientPayments(uid: string | undefined) {
   const [payments, setPayments] = React.useState<PaymentRecord[]>([]);
   const [loading, setLoading] = React.useState(true);

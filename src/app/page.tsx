@@ -111,16 +111,8 @@ export default function HomePage() {
           <div className="arx-blob -left-16 -top-10 h-72 w-72 bg-[#7fc6b6]" />
           <div className="arx-blob -right-10 top-24 h-72 w-72 bg-[#e7b8a8]" />
           <div className="arx-blob left-1/2 top-64 h-64 w-64 -translate-x-1/2 bg-[#f1d58a]" />
-          <div className="mx-auto max-w-6xl px-4 py-20 text-center md:py-28">
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              <span className="inline-flex items-center rounded-full border border-[var(--border)] bg-[var(--card)] px-3 py-1 text-xs font-medium text-[var(--muted-foreground)]">
-                Licensed in Arkansas · Independent Practice Authority
-              </span>
-              <span className="arx-rx-pill">
-                <Pill className="h-3.5 w-3.5" /> Prescriptions sent to our pharmacy
-              </span>
-            </div>
-            <h1 className="mx-auto mt-6 max-w-3xl text-4xl font-semibold tracking-tight md:text-6xl">
+          <div className="mx-auto max-w-6xl px-4 pb-20 pt-12 text-center md:pb-28 md:pt-16">
+            <h1 className="mx-auto max-w-3xl text-4xl font-semibold tracking-tight md:text-6xl">
               Prescription skin care,{" "}
               <span className="arx-gradient-text">from your phone.</span>
             </h1>
@@ -140,7 +132,15 @@ export default function HomePage() {
                 </Button>
               </Link>
             </div>
-            <p className="mt-6 inline-flex items-center gap-2 text-sm text-[var(--muted-foreground)]">
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+              <span className="inline-flex items-center rounded-full border border-[var(--border)] bg-[var(--card)] px-3 py-1 text-xs font-medium text-[var(--muted-foreground)]">
+                Licensed in Arkansas · Independent Practice Authority
+              </span>
+              <span className="arx-rx-pill">
+                <Pill className="h-3.5 w-3.5" /> Prescriptions sent to our pharmacy
+              </span>
+            </div>
+            <p className="mt-4 inline-flex items-center gap-2 text-sm text-[var(--muted-foreground)]">
               <ShieldCheck className="h-4 w-4 text-[var(--primary)]" />
               Licensed Arkansas providers · Secure & private · No waiting rooms
             </p>

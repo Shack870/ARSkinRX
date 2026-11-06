@@ -74,7 +74,6 @@ export async function GET(
       email: patient.get("email") ?? null,
       phone: patient.get("phone") ?? null,
       dob: patient.get("dob") ?? null,
-      pharmacy: patient.get("pharmacy") ?? rx.pharmacy ?? null,
     },
     nurse: {
       uid: rx.providerId,

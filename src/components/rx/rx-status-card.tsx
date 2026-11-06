@@ -74,7 +74,7 @@ export function RxStatusCard({
         {allSent ? (
           <p className="text-sm">
             Your prescription was sent to{" "}
-            <strong>{sent[0]?.pharmacy?.name ?? "your pharmacy"}</strong> on{" "}
+<strong>the pharmacy</strong> on{" "}
             {formatDateTime(Math.max(...sent.map((p) => p.sentAt ?? 0)))}. The
             pharmacy will contact you when it&apos;s ready.
           </p>
@@ -139,7 +139,7 @@ export function RxStatusCard({
                 )}
                 {p.sentAt && (
                   <li>
-                    Sent to {p.pharmacy?.name ?? "pharmacy"} · {formatDateTime(p.sentAt)}
+                    Sent to pharmacy · {formatDateTime(p.sentAt)}
                     {p.sentVia ? ` (${p.sentVia})` : ""}
                   </li>
                 )}

@@ -10,8 +10,6 @@ import {
   Loader2,
   PhoneOff,
   Pill,
-  Plus,
-  Trash2,
   User,
 } from "lucide-react";
 import { db } from "@/lib/firebase/client";
@@ -178,17 +176,12 @@ export function ProviderVisitPanel({
       );
       return;
     }
-    const cleanItems = items.filter((i) => i.drug.trim() || i.sig.trim());
-    if (decision === "recommend") {
-      if (cleanItems.length === 0) {
-        toast.error("Add at least one medication.");
-        return;
-      }
-      const bad = cleanItems.find((i) => !i.drug.trim() || !i.sig.trim());
-      if (bad) {
-        toast.error("Each medication needs a drug name and directions.");
-        return;
-      }
+    const cleanItems = items
+      .map((i) => ({ ...i, drug: i.drug.trim() }))
+      .filter((i) => i.drug);
+    if (decision === "recommend" && cleanItems.length === 0) {
+      toast.error("Write what you want to prescribe before ending.");
+      return;
     }
     const ok = await confirm({
       title: "End appointment?",
@@ -355,48 +348,17 @@ export function ProviderVisitPanel({
                   the pharmacy will contact them within 24 hours.
                 </p>
               )}
-              {rxItems.map((item, idx) => (
-                <div
-                  key={idx}
-                  className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--card)] p-3"
-                >
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-medium text-[var(--muted-foreground)]">
-                      Medication {idx + 1}
-                    </p>
-                    {rxItems.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setRxItems((list) => list.filter((_, i) => i !== idx))
-                        }
-                        className="text-[var(--muted-foreground)] hover:text-[var(--accent)]"
-                        aria-label="Remove medication"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
-                  <RxItemFields
-                    idPrefix={`visit-rx-${idx}`}
-                    value={item}
-                    onChange={(next) =>
-                      setRxItems((list) => list.map((it, i) => (i === idx ? next : it)))
-                    }
-                    serviceId={appointment.serviceId}
-                    compact
-                  />
-                </div>
-              ))}
-              {rxItems.length < 4 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setRxItems((list) => [...list, emptyPrescriptionItem()])}
-                >
-                  <Plus className="h-4 w-4" /> Add another medication
-                </Button>
-              )}
+              <RxItemFields
+                idPrefix="visit-rx"
+                value={rxItems[0]}
+                onChange={(next) => setRxItems([next])}
+                label={
+                  isAdmin
+                    ? "What you're prescribing"
+                    : "What you'd like prescribed (drug, strength, directions, quantity, refills)"
+                }
+                compact
+              />
               {!isAdmin && (
                 <div>
                   <Label className="text-xs">Why (one line for Crystal)</Label>

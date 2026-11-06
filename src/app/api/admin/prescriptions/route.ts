@@ -18,7 +18,6 @@ export interface RxQueueRow {
   visitStart: number;
   item: Prescription["recommended"];
   reason: string;
-  pharmacy: Prescription["pharmacy"];
   recommendedAt: number;
   reviewedAt: number | null;
 }
@@ -78,8 +77,6 @@ export async function GET(req: Request) {
         visitStart: (appt.get("start") as number) ?? rx.recommendedAt,
         item: rx.status === "approved" && rx.final ? rx.final : rx.recommended,
         reason: rx.reason ?? "",
-        // Prefer the patient's current pharmacy over the snapshot.
-        pharmacy: patient.get("pharmacy") ?? rx.pharmacy ?? null,
         recommendedAt: rx.recommendedAt,
         reviewedAt: rx.reviewedAt ?? null,
       };

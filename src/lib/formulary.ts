@@ -168,6 +168,8 @@ export function emptyPrescriptionItem(): PrescriptionItem {
 
 /** "Tretinoin cream 0.025% — 45 g, 2 refills" for lists and emails. */
 export function describeItem(item: PrescriptionItem): string {
+  // Free-text prescriptions: everything is in `drug`, nothing else is set.
+  if (!item.strength && !item.sig && !item.quantity && !item.refills) return item.drug;
   const head = [item.drug, item.strength].filter(Boolean).join(" ");
   const tail = [
     item.quantity,

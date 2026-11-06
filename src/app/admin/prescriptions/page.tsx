@@ -8,7 +8,6 @@ import {
   ClipboardList,
   Inbox,
   Loader2,
-  MapPin,
   Phone,
   Send,
   Stethoscope,
@@ -33,7 +32,6 @@ import { IntakePhotos } from "@/components/intake-photos";
 import { RxItemFields } from "@/components/rx/rx-item-fields";
 import type {
   IntakeResponse,
-  PatientPharmacy,
   Prescription,
   PrescriptionItem,
   VisitNote,
@@ -48,7 +46,6 @@ interface Detail {
     email: string | null;
     phone: string | null;
     dob: string | null;
-    pharmacy: PatientPharmacy | null;
   };
   nurse: { uid: string; displayName: string };
   appointment: {
@@ -105,7 +102,7 @@ export default function AdminPrescriptionsPage() {
         <h1 className="text-2xl font-semibold tracking-tight">Prescriptions</h1>
         <p className="text-[var(--muted-foreground)]">
           Review what your nurses recommended, then send approved prescriptions
-          to each patient&apos;s pharmacy. Once marked sent, the record lives on
+          to the pharmacy. Once marked sent, the record lives on
           the visit in Appointments.
         </p>
       </div>
@@ -300,7 +297,6 @@ function ReviewCard({ id, onDone }: { id: string; onDone: () => Promise<void> })
   const age = ageFromDob(patient.dob);
   const missing: string[] = [];
   if (!patient.dob) missing.push("date of birth");
-  if (!patient.pharmacy?.name) missing.push("pharmacy");
 
   return (
     <Card className="overflow-hidden">
@@ -367,11 +363,6 @@ function ReviewCard({ id, onDone }: { id: string; onDone: () => Promise<void> })
           </section>
 
           <section>
-            <SectionTitle icon={MapPin}>Pharmacy</SectionTitle>
-            <PharmacyBlock pharmacy={patient.pharmacy} />
-          </section>
-
-          <section>
             <SectionTitle icon={ClipboardList}>Intake</SectionTitle>
             <IntakeSummary intake={intake} />
             <IntakePhotos paths={intake?.photoPaths ?? []} />
@@ -434,10 +425,14 @@ function ReviewCard({ id, onDone }: { id: string; onDone: () => Promise<void> })
             <p className="text-xs font-semibold uppercase tracking-wide text-[var(--primary)]">
               Recommendation
             </p>
-            <p className="mt-1 font-medium">{describeItem(prescription.recommended)}</p>
-            <p className="text-sm text-[var(--muted-foreground)]">
-              {prescription.recommended.sig}
+            <p className="mt-1 whitespace-pre-wrap font-medium">
+              {describeItem(prescription.recommended)}
             </p>
+            {prescription.recommended.sig && (
+              <p className="text-sm text-[var(--muted-foreground)]">
+                {prescription.recommended.sig}
+              </p>
+            )}
             {prescription.reason && (
               <p className="mt-2 text-sm">
                 <span className="text-[var(--muted-foreground)]">Why:</span>{" "}
@@ -454,7 +449,6 @@ function ReviewCard({ id, onDone }: { id: string; onDone: () => Promise<void> })
               idPrefix={`rx-${id}`}
               value={item}
               onChange={setItem}
-              serviceId={prescription.serviceId}
               compact
             />
           </div>
@@ -601,7 +595,6 @@ function SendList({
                   {formatDate(first.visitStart)}
                 </p>
               </div>
-              <PharmacyBlock pharmacy={first.pharmacy} compact />
             </div>
 
             <ul className="mt-4 divide-y divide-[var(--border)]">
@@ -611,8 +604,10 @@ function SendList({
                   className="flex flex-wrap items-start justify-between gap-3 py-3"
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium">{describeItem(row.item)}</p>
-                    <p className="text-sm text-[var(--muted-foreground)]">{row.item.sig}</p>
+                    <p className="whitespace-pre-wrap font-medium">{describeItem(row.item)}</p>
+                    {row.item.sig && (
+                      <p className="text-sm text-[var(--muted-foreground)]">{row.item.sig}</p>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <Input
@@ -645,33 +640,6 @@ function SendList({
 }
 
 /* ───────────────────────────── bits ───────────────────────────── */
-
-function PharmacyBlock({
-  pharmacy,
-  compact,
-}: {
-  pharmacy: PatientPharmacy | null | undefined;
-  compact?: boolean;
-}) {
-  if (!pharmacy?.name) {
-    return (
-      <p className="flex items-center gap-1.5 text-sm text-amber-700">
-        <AlertTriangle className="h-4 w-4" /> No pharmacy on file
-      </p>
-    );
-  }
-  return (
-    <div className={compact ? "text-right text-sm" : "text-sm"}>
-      <p className="font-medium">{pharmacy.name}</p>
-      {pharmacy.location && (
-        <p className="text-[var(--muted-foreground)]">{pharmacy.location}</p>
-      )}
-      {pharmacy.phone && (
-        <p className="text-[var(--muted-foreground)]">{pharmacy.phone}</p>
-      )}
-    </div>
-  );
-}
 
 function SectionTitle({
   icon: Icon,

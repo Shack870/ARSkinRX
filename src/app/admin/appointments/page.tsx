@@ -13,6 +13,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LiveBadge } from "@/components/live/live-badge";
+import { RxSentChip } from "@/components/rx/rx-sent-chip";
+import { usePrescriptionsByAppointment } from "@/lib/hooks";
 import type { AppointmentStatus, ServiceType } from "@/lib/types";
 
 const STATUS_OPTIONS: (AppointmentStatus | "all")[] = [
@@ -51,6 +53,7 @@ export default function AdminAppointmentsPage() {
   const [loading, setLoading] = React.useState(true);
   const [q, setQ] = React.useState("");
   const [status, setStatus] = React.useState<AppointmentStatus | "all">("all");
+  const rxByAppt = usePrescriptionsByAppointment({ admin: true });
 
   React.useEffect(() => {
     authedFetch("/api/admin/appointments")
@@ -141,7 +144,8 @@ export default function AdminAppointmentsPage() {
                   <th className="py-2 pr-3">Patient</th>
                   <th className="py-2 pr-3">Provider</th>
                   <th className="py-2 pr-3">Price</th>
-                  <th className="py-2">Status</th>
+                  <th className="py-2 pr-3">Status</th>
+                  <th className="py-2">Prescription</th>
                 </tr>
               </thead>
               <tbody>
@@ -167,10 +171,13 @@ export default function AdminAppointmentsPage() {
                     <td className="py-2 pr-3">{a.clientName}</td>
                     <td className="py-2 pr-3">{a.providerName}</td>
                     <td className="py-2 pr-3">{formatCurrency(a.priceCents)}</td>
-                    <td className="py-2">
+                    <td className="py-2 pr-3">
                       <Badge variant={VARIANT[a.status]}>
                         {a.status.replace("_", " ")}
                       </Badge>
+                    </td>
+                    <td className="py-2 whitespace-nowrap">
+                      <RxSentChip prescriptions={rxByAppt.get(a.id)} canMarkSent />
                     </td>
                   </tr>
                 ))}
