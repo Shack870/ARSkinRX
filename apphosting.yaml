@@ -53,6 +53,20 @@ env:
     secret: CRON_SECRET
     availability: [RUNTIME]
 
+  # ── Apple Push Notifications (iOS app) ──
+  - variable: APNS_KEY_ID
+    secret: APNS_KEY_ID
+    availability: [RUNTIME]
+  - variable: APNS_KEY_P8
+    secret: APNS_KEY_P8
+    availability: [RUNTIME]
+  - variable: APNS_TEAM_ID
+    value: "W5KVNXM2AL"
+    availability: [RUNTIME]
+  - variable: APNS_BUNDLE_ID
+    value: "com.arskinrx.app"
+    availability: [RUNTIME]
+
   # ── Secrets (uncomment once created in Secret Manager) ──
   # - variable: STRIPE_SECRET_KEY
   #   secret: stripe-secret-key
