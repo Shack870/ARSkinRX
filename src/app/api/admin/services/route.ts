@@ -4,7 +4,7 @@ import { adminDb } from "@/lib/firebase/admin";
 import { COLLECTIONS } from "@/lib/firebase/collections";
 import { requireAdmin } from "@/lib/api-auth";
 import { getEffectiveServices } from "@/lib/services-server";
-import { SERVICE_MAP } from "@/lib/services";
+import { MIN_APPOINTMENT_PRICE_CENTS, SERVICE_MAP } from "@/lib/services";
 import type { ServiceType } from "@/lib/types";
 
 /** GET /api/admin/services — effective catalog for management. */
@@ -27,6 +27,14 @@ export async function PUT(req: Request) {
   const price = Number(defaultPriceCents);
   if (!Number.isFinite(price) || price < 0) {
     return NextResponse.json({ error: "Invalid price" }, { status: 400 });
+  }
+  if (price < MIN_APPOINTMENT_PRICE_CENTS) {
+    return NextResponse.json(
+      {
+        error: `Visit price must be at least $${(MIN_APPOINTMENT_PRICE_CENTS / 100).toFixed(0)}`,
+      },
+      { status: 400 },
+    );
   }
 
   await adminDb

@@ -1,6 +1,12 @@
 import type { ServiceDefinition, ServiceType } from "./types";
 
 /**
+ * Floor for any visit price (scheduled or Live Connect). Admin price edits
+ * below this are rejected so no appointment can ever be sold for less.
+ */
+export const MIN_APPOINTMENT_PRICE_CENTS = 7900;
+
+/**
  * The ARSkinRX service catalog. These are the condition lines clients book
  * against and providers opt into during onboarding. Prices are defaults in
  * cents; a provider can override per-service.
@@ -35,7 +41,7 @@ export const SERVICES: ServiceDefinition[] = [
     shortDescription: "Clear breakouts with a prescription plan.",
     description:
       "From occasional breakouts to persistent acne, get a prescription treatment plan — topical and oral options — tailored to your skin.",
-    defaultPriceCents: 6900,
+    defaultPriceCents: 7900,
     durationMinutes: 15,
     icon: "Droplet",
   },
@@ -46,7 +52,7 @@ export const SERVICES: ServiceDefinition[] = [
     shortDescription: "Calm redness, flushing, and flare-ups.",
     description:
       "Manage facial redness, flushing, and bumps with prescription therapies and trigger-avoidance guidance designed for rosacea-prone skin.",
-    defaultPriceCents: 6900,
+    defaultPriceCents: 7900,
     durationMinutes: 15,
     icon: "Flame",
   },
@@ -79,7 +85,7 @@ export const SERVICES: ServiceDefinition[] = [
     shortDescription: "Fungus and nail issues, treated remotely.",
     description:
       "A focused visit for toenail fungus (onychomycosis), discoloration, thickening, and other nail concerns, with prescription antifungal options.",
-    defaultPriceCents: 6900,
+    defaultPriceCents: 7900,
     durationMinutes: 15,
     icon: "Footprints",
   },

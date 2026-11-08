@@ -4,6 +4,7 @@ import { adminDb } from "@/lib/firebase/admin";
 import { COLLECTIONS } from "@/lib/firebase/collections";
 import { requireAdmin } from "@/lib/api-auth";
 import { getLivePriceCents } from "@/lib/live-server";
+import { MIN_APPOINTMENT_PRICE_CENTS } from "@/lib/services";
 
 /** GET /api/admin/settings — platform settings (real-time visit price). */
 export async function GET(req: Request) {
@@ -22,6 +23,14 @@ export async function PUT(req: Request) {
   const cents = Number(realtimePriceCents);
   if (!Number.isFinite(cents) || cents < 0) {
     return NextResponse.json({ error: "Invalid price" }, { status: 400 });
+  }
+  if (cents < MIN_APPOINTMENT_PRICE_CENTS) {
+    return NextResponse.json(
+      {
+        error: `Visit price must be at least $${(MIN_APPOINTMENT_PRICE_CENTS / 100).toFixed(0)}`,
+      },
+      { status: 400 },
+    );
   }
 
   await adminDb

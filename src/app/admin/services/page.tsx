@@ -18,6 +18,15 @@ interface SvcRow {
   enabled: boolean;
 }
 
+async function apiError(res: Response): Promise<string> {
+  try {
+    const d = (await res.json()) as { error?: string };
+    return d.error ?? "";
+  } catch {
+    return "";
+  }
+}
+
 export default function AdminServicesPage() {
   const toast = useToast();
   const [rows, setRows] = React.useState<SvcRow[]>([]);
@@ -56,10 +65,12 @@ export default function AdminServicesPage() {
         method: "PUT",
         body: JSON.stringify({ realtimePriceCents: Math.round(dollars * 100) }),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) throw new Error(await apiError(res));
       toast.success("Real-time price updated");
-    } catch {
-      toast.error("Couldn't update real-time price");
+    } catch (e) {
+      toast.error(
+        e instanceof Error && e.message ? e.message : "Couldn't update real-time price",
+      );
     } finally {
       setSavingLive(false);
     }
@@ -81,11 +92,13 @@ export default function AdminServicesPage() {
           defaultPriceCents: Math.round(dollars * 100),
         }),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) throw new Error(await apiError(res));
       toast.success(`${row.name} updated`);
       load();
-    } catch {
-      toast.error("Couldn't update service");
+    } catch (e) {
+      toast.error(
+        e instanceof Error && e.message ? e.message : "Couldn't update service",
+      );
     } finally {
       setSavingId(null);
     }

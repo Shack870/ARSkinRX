@@ -69,7 +69,7 @@ const FAQS = [
   },
   {
     q: "How much does it cost?",
-    a: "Most visits are $69–$79, shown clearly before you pay. You pay securely at booking. Any medication is paid for separately through the pharmacy that fills it.",
+    a: "Scheduled visits are $79 and Live Connect (see a nurse now) visits are $99, shown clearly before you pay. You pay securely at booking. Any medication is paid for separately through the pharmacy that fills it.",
   },
 ];
 
