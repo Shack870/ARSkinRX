@@ -16,8 +16,10 @@ import { Steps } from "@/components/ui/steps";
 import { HoldTimer } from "@/components/hold-timer";
 import { LiveConnectCard } from "@/components/live/live-connect-card";
 import { useToast } from "@/components/ui/toast";
+import { useConfirm } from "@/components/ui/confirm";
 import { useAuth } from "@/lib/auth-context";
 import { authedFetch } from "@/lib/api-client";
+import { feeNoticeOptions } from "@/lib/fee-notice";
 import { auth } from "@/lib/firebase/client";
 import { uploadIntakePhoto } from "@/lib/storage";
 import { SERVICES, getServiceBySlug, getService } from "@/lib/services";
@@ -74,7 +76,31 @@ function BookInner() {
   const router = useRouter();
   const params = useSearchParams();
   const toast = useToast();
+  const confirm = useConfirm();
   const { user, profile, loading: authLoading, signInWithToken, signIn } = useAuth();
+
+  // Fee acknowledgement when the patient arrives to book. Shown once per
+  // browser session; skipped when Stripe sends them back after a cancelled
+  // live checkout (they've already acknowledged it). "Go Back" returns to the
+  // page they came from.
+  const feeNoticeShown = React.useRef(false);
+  React.useEffect(() => {
+    if (feeNoticeShown.current) return;
+    feeNoticeShown.current = true;
+    const KEY = "arx-fee-ack";
+    if (params.get("canceled") || sessionStorage.getItem(KEY)) return;
+    const svc = params.get("service")
+      ? getServiceBySlug(params.get("service")!)
+      : undefined;
+    confirm(feeNoticeOptions(svc?.defaultPriceCents)).then((ok) => {
+      if (ok) {
+        sessionStorage.setItem(KEY, "1");
+        return;
+      }
+      if (window.history.length > 1) router.back();
+      else router.push("/");
+    });
+  }, [confirm, params, router]);
 
   // Guest booking: capture identity at intake; account is created silently and
   // the patient sets a password after paying.

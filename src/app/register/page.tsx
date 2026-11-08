@@ -11,8 +11,10 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useConfirm } from "@/components/ui/confirm";
 import { useAuth } from "@/lib/auth-context";
 import { authedFetch } from "@/lib/api-client";
+import { feeNoticeOptions } from "@/lib/fee-notice";
 
 export default function RegisterPage() {
   return (
@@ -26,6 +28,7 @@ function RegisterInner() {
   const router = useRouter();
   const params = useSearchParams();
   const { signUp, refreshClaims } = useAuth();
+  const confirm = useConfirm();
   const [form, setForm] = React.useState({
     displayName: "",
     email: "",
@@ -52,6 +55,8 @@ function RegisterInner() {
       return setError(
         "Please review and agree to the Terms, Privacy Policy, and Telehealth Consent to continue.",
       );
+    // Fee acknowledgement: "Go Back" leaves the form as-is so they can review.
+    if (!(await confirm(feeNoticeOptions()))) return;
     setLoading(true);
     try {
       await signUp(form.email, form.password, form.displayName);
